@@ -29,13 +29,14 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
-        cache: true
+        cache: false
 
     - name: Build
       env:
         GOOS: ${{ matrix.os }}
         GOARCH: ${{ matrix.arch }}
         CGO_ENABLED: 0
+        GO111MODULE: on
       run: |
         BINARY_NAME=api-v2ray-${{ matrix.os }}-${{ matrix.arch }}
         if [ "${{ matrix.os }}" = "windows" ]; then
