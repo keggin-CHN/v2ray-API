@@ -1,0 +1,41 @@
+server:
+  listen: ":8080"
+  admin_token: "change-me"
+
+runtime:
+  dir: "./runtime"
+  xray_binary: "xray"
+  base_port: 21000
+  healthcheck_url: "https://api.openai.com"
+  subscription_cache_file: "./runtime/subscriptions/cache.json"
+
+upstreams:
+  - id: "relay-a"
+    name: "Relay A"
+    base_url: "https://api-a.example.com/v1"
+    api_key: "sk-a"
+    models: ["gpt-4o", "text-embedding-3-small"]
+    binding_id: "bind-a"
+    enabled: true
+    timeout_seconds: 120
+
+bindings:
+  - id: "bind-a"
+    upstream_id: "relay-a"
+    node_id: "manual-hk-01"
+    mode: "fixed"
+
+proxy_nodes:
+  - id: "manual-hk-01"
+    name: "Manual HK Node"
+    scheme: "socks5"
+    host: "127.0.0.1"
+    port: 21001
+    subscription_id: "manual"
+    tags: ["hk", "manual"]
+
+subscriptions:
+  - id: "sub-main"
+    name: "Main Subscription"
+    url: "https://example.com/sub"
+    refresh_interval_seconds: 3600

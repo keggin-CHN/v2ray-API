@@ -1,0 +1,62 @@
+{
+  "server": {
+    "listen": ":3000",
+    "admin_token": "change-me"
+  },
+  "runtime": {
+    "dir": "./runtime",
+    "xray_binary": "./.bin/xray",
+    "base_port": 21000,
+    "healthcheck_url": "https://api.openai.com",
+    "subscription_cache_file": "./runtime/subscriptions/cache.json"
+  },
+  "failover": {
+    "cooldown_steps": [
+      {"after_failures": 1, "duration_seconds": 10},
+      {"after_failures": 2, "duration_seconds": 30},
+      {"after_failures": 3, "duration_seconds": 90},
+      {"after_failures": 5, "duration_seconds": 300}
+    ]
+  },
+  "upstreams": [
+    {
+      "id": "ojbk-upstream",
+      "name": "Ojbk API",
+      "base_url": "https://ojbkapi.com/v1",
+      "api_key": "sk-your-api-key-here",
+      "models": [
+        "gpt-5.4",
+        "gpt5.4",
+        "gpt-5.5",
+        "gpt5.5",
+        "gpt-5.3-codex",
+        "gpt5.3codex"
+      ],
+      "binding_id": "bind-1",
+      "priority": 100,
+      "enabled": true,
+      "timeout_seconds": 120
+    }
+  ],
+  "bindings": [
+    {
+      "id": "bind-1",
+      "upstream_id": "ojbk-upstream",
+      "node_id": "node-1",
+      "mode": "fixed"
+    }
+  ],
+  "proxy_nodes": [
+    {
+      "id": "node-1",
+      "name": "首尔-梅雪祈春",
+      "scheme": "vless",
+      "host": "1.1.1.1",
+      "port": 44932,
+      "subscription_id": "",
+      "tags": [],
+      "raw_uri": "vless://your-uuid@1.1.1.1:44932?security=reality\u0026encryption=none\u0026pbk=your-pbk\u0026headerType=\u0026fp=chrome\u0026type=tcp\u0026flow=xtls-rprx-vision\u0026sni=www.microsoft.com\u0026sid=your-sid#%F0%9F%87%B0%F0%9F%87%B7%20%E9%A6%96%E5%B0%94-%E6%A2%85%E9%9B%AA%E4%BA%89%E6%98%A5"
+    }
+  ],
+  "subscriptions": []
+}

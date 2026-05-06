@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>登录 - api-v2ray 控制台</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+</head>
+<body data-page="login">
+  <main class="center-wrap">
+    <section class="card auth-card">
+      <h1>控制台登录</h1>
+      <p class="muted">所有控制台页面与管理接口都需要密钥。初始密钥可在编译时注入，登录后可在控制台修改。</p>
+      <div class="form-grid one-col">
+        <label>管理密钥<input id="login-token" type="password" placeholder="请输入控制台密钥" /></label>
+        <button class="btn primary" data-action="login">登录</button>
+      </div>
+      <pre id="login-log" class="log-box"></pre>
+    </section>
+  </main>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

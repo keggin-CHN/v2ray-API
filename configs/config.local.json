@@ -1,0 +1,58 @@
+{
+  "server": {
+    "listen": ":3000",
+    "admin_token": "change-me"
+  },
+  "runtime": {
+    "dir": "./runtime",
+    "xray_binary": "./.bin/xray",
+    "base_port": 21000,
+    "healthcheck_url": "https://api.openai.com",
+    "subscription_cache_file": "./runtime/subscriptions/cache.json"
+  },
+  "upstreams": [
+    {
+      "id": "ruilab-main",
+      "name": "Ruilab Main",
+      "base_url": "https://newapi.ruilab.top/v1",
+      "api_key": "sk-your-api-key-here",
+      "models": [
+        "gpt-5.4",
+        "gpt5.4",
+        "gpt-5.5",
+        "gpt5.5",
+        "gpt-5.3-codex",
+        "gpt5.3codex"
+      ],
+      "binding_id": "bind-ruilab-main",
+      "priority": 100,
+      "enabled": true,
+      "timeout_seconds": 120
+    }
+  ],
+  "bindings": [
+    {
+      "id": "bind-ruilab-main",
+      "upstream_id": "ruilab-main",
+      "node_id": "jp-hy2-01",
+      "mode": "fixed"
+    }
+  ],
+  "proxy_nodes": [
+    {
+      "id": "jp-hy2-01",
+      "name": "🇯🇵 东京-兰亭序曲",
+      "scheme": "hysteria2",
+      "host": "1.1.1.1",
+      "port": 20018,
+      "subscription_id": "manual",
+      "tags": [
+        "jp",
+        "manual",
+        "hysteria2"
+      ],
+      "raw_uri": "hysteria2://your-uuid@1.1.1.1:20018?sni=bing.com&insecure=1#%F0%9F%87%AF%F0%9F%87%B5%20%E4%B8%9C%E4%BA%AC-%E5%85%B0%E4%BA%AD%E5%BA%8F%E6%9B%B2"
+    }
+  ],
+  "subscriptions": []
+}
