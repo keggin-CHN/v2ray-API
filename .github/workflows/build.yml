@@ -1,0 +1,53 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+        # Exclude windows/arm64 as it's less common, but you can remove this exclude if needed.
+        exclude:
+          - os: windows
+            arch: arm64
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+
+    - name: Build
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+        CGO_ENABLED: 0
+      run: |
+        BINARY_NAME=api-v2ray-${{ matrix.os }}-${{ matrix.arch }}
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+        
+        echo "Building $BINARY_NAME..."
+        go build -trimpath -ldflags="-s -w" -v -o build/$BINARY_NAME ./cmd/api-v2ray
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-v2ray-${{ matrix.os }}-${{ matrix.arch }}
+        path: build/api-v2ray-*
+        retention-days: 7
