@@ -270,7 +270,7 @@
       <pre id="import-preview" class="log-box"></pre>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapsible>
       <div class="card-head compact-head">
         <div>
           <h2>线路健康</h2>
@@ -284,15 +284,15 @@
         <table class="table preview-table">
           <thead>
             <tr>
-              <th>Upstream</th>
-              <th>Binding</th>
-              <th>Node</th>
-              <th>连续失败</th>
-              <th>总成功</th>
-              <th>总失败</th>
-              <th>冷却中</th>
-              <th>剩余冷却(s)</th>
-              <th>最后错误</th>
+              <th scope="col">Upstream</th>
+              <th scope="col">Binding</th>
+              <th scope="col">Node</th>
+              <th scope="col">连续失败</th>
+              <th scope="col">总成功</th>
+              <th scope="col">总失败</th>
+              <th scope="col">冷却中</th>
+              <th scope="col">剩余冷却(s)</th>
+              <th scope="col">最后错误</th>
             </tr>
           </thead>
           <tbody id="route-health-tbody"></tbody>
@@ -301,7 +301,7 @@
       <pre id="route-health-log" class="log-box"></pre>
     </section>
 
-    <section class="card">
+    <section class="card" data-collapsible>
       <div class="card-head compact-head">
         <div>
           <h2>出口 IP 自检</h2>
@@ -315,11 +315,11 @@
         <table class="table preview-table">
           <thead>
             <tr>
-              <th>本机直连 IP</th>
-              <th>代理出口 IP</th>
-              <th>本地代理地址</th>
-              <th>代理生效</th>
-              <th>与直连相同</th>
+              <th scope="col">本机直连 IP</th>
+              <th scope="col">代理出口 IP</th>
+              <th scope="col">本地代理地址</th>
+              <th scope="col">代理生效</th>
+              <th scope="col">与直连相同</th>
             </tr>
           </thead>
           <tbody id="exit-ip-tbody"></tbody>
