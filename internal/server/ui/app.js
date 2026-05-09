@@ -4,6 +4,7 @@ let bindingEditorState = { index: -1 };
 let nodeEditorState = { index: -1 };
 let subscriptionEditorState = { index: -1 };
 let toastTimer = null;
+let isDirty = false;
 
 let confirmTimers = new WeakMap();
 let activeRequests = 0;
@@ -73,6 +74,19 @@ function splitTags(s) { return String(s || '').split(',').map(v => v.trim()).fil
 function splitCSV(s) { return String(s || '').split(',').map(v => v.trim()).filter(Boolean); }
 function escapeHTML(s) { return String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'); }
 function ts() { return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
+
+function markDirty() {
+  if (isDirty) return;
+  isDirty = true;
+  const btn = document.querySelector('[data-action="save-config"]');
+  if (btn) btn.classList.add('has-changes');
+}
+
+function markClean() {
+  isDirty = false;
+  const btn = document.querySelector('[data-action="save-config"]');
+  if (btn) btn.classList.remove('has-changes');
+}
 
 function metric(label, value) {
   const div = document.createElement('div');
@@ -634,6 +648,7 @@ async function loadConfig() {
   await Promise.allSettled([loadRouteHealth(), loadExitIPProbe()]);
   setLog('config-log', `已加载配置: ${data.path}\n说明：控制台密钥不会回显；修改请使用“修改控制台密钥”按钮。`);
   showToast('配置已加载');
+  markClean();
 }
 
 function syncBaseFieldsIntoConfig() {
@@ -662,6 +677,7 @@ async function saveConfig() {
   await Promise.allSettled([loadRouteHealth()]);
   setLog('config-log', `[${ts()}] 保存成功。已自动备份旧配置到 configs/.history/ 。`);
   showToast('配置已保存');
+  markClean();
 }
 
 async function applyConfig() {
@@ -679,6 +695,7 @@ async function applyConfig() {
   const generated = data.result?.summary?.generated_count ?? data.result?.flat_result?.generated_xray?.length ?? 0;
   setLog('config-log', `[${ts()}] 保存并应用成功。节点数=${nodeCount}，生成配置数=${generated}。已刷新路由与 Xray 产物。`);
   showToast('配置已保存并应用');
+  markClean();
 }
 
 async function previewURI() {
@@ -802,6 +819,7 @@ function bindEditorSummary() {
   if (!editor) return;
   let timer = null;
   editor.addEventListener('input', () => {
+    markDirty();
     clearTimeout(timer);
     timer = setTimeout(() => {
       try {
@@ -820,6 +838,7 @@ function bindEditorSummary() {
   const form = byId('config-form');
   if (form) {
     form.addEventListener('input', () => {
+      markDirty();
       clearTimeout(timer);
       timer = setTimeout(() => {
         try {
