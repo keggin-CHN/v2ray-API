@@ -597,6 +597,8 @@ textarea {
 .toast.show {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .toast.error {
@@ -815,6 +817,17 @@ textarea:focus-visible {
 
 .btn.danger:hover {
   background: linear-gradient(180deg, rgba(255, 112, 127, 0.38), rgba(255, 112, 127, 0.22));
+}
+
+.btn.danger.confirm-pending {
+  background: linear-gradient(180deg, rgba(255, 112, 127, 0.5), rgba(255, 112, 127, 0.35));
+  border-color: rgba(255, 112, 127, 0.7);
+  animation: pulse-danger 0.6s ease infinite alternate;
+}
+
+@keyframes pulse-danger {
+  from { box-shadow: 0 0 0 0 rgba(255, 112, 127, 0.3); }
+  to { box-shadow: 0 0 0 6px rgba(255, 112, 127, 0); }
 }
 
 .btn.danger:focus-visible {

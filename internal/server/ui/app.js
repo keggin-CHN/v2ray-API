@@ -5,6 +5,29 @@ let nodeEditorState = { index: -1 };
 let subscriptionEditorState = { index: -1 };
 let toastTimer = null;
 
+let confirmTimers = new WeakMap();
+
+function requireConfirm(btn, action) {
+  if (btn.dataset.confirmed === 'true') {
+    btn.dataset.confirmed = '';
+    btn.textContent = btn.dataset.originalLabel;
+    btn.classList.remove('confirm-pending');
+    clearTimeout(confirmTimers.get(btn));
+    return true;
+  }
+  btn.dataset.originalLabel = btn.dataset.originalLabel || btn.textContent;
+  btn.dataset.confirmed = 'true';
+  btn.textContent = '确认' + (btn.dataset.originalLabel || action) + '?';
+  btn.classList.add('confirm-pending');
+  const timer = setTimeout(() => {
+    btn.dataset.confirmed = '';
+    btn.textContent = btn.dataset.originalLabel;
+    btn.classList.remove('confirm-pending');
+  }, 3000);
+  confirmTimers.set(btn, timer);
+  return false;
+}
+
 async function api(url, options = {}) {
   const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
   const res = await fetch(url, {credentials: 'same-origin', ...options, headers});
@@ -46,6 +69,7 @@ function showToast(message, type = 'success') {
   toastTimer = setTimeout(() => {
     el.classList.remove('show');
   }, type === 'error' ? 4000 : 2600);
+  el.onclick = () => { clearTimeout(toastTimer); el.classList.remove('show'); };
 }
 
 function withBusy(button, on) {
@@ -756,6 +780,18 @@ function bindEditorSummary() {
       } catch {}
     }, 200);
   });
+  const form = byId('config-form');
+  if (form) {
+    form.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          const cfg = syncBaseFieldsIntoConfig();
+          setEditorConfig(cfg);
+        } catch {}
+      }, 400);
+    });
+  }
 }
 
 document.addEventListener('change', e => {
@@ -835,28 +871,28 @@ document.addEventListener('click', async e => {
       loadUpstreamForm(upstreamEditorState.index >= 0 ? upstreamEditorState.index : -1);
     }
     if (action === 'upstream-form-save') saveUpstreamForm();
-    if (action === 'upstream-form-delete') deleteUpstreamForm();
+    if (action === 'upstream-form-delete') { if (requireConfirm(btn, '删除')) deleteUpstreamForm(); }
     if (action === 'binding-form-new') loadBindingForm(-1);
     if (action === 'binding-form-sync') {
       renderBindingList();
       loadBindingForm(bindingEditorState.index >= 0 ? bindingEditorState.index : -1);
     }
     if (action === 'binding-form-save') saveBindingForm();
-    if (action === 'binding-form-delete') deleteBindingForm();
+    if (action === 'binding-form-delete') { if (requireConfirm(btn, '删除')) deleteBindingForm(); }
     if (action === 'node-form-new') loadNodeForm(-1);
     if (action === 'node-form-sync') {
       renderNodeList();
       loadNodeForm(nodeEditorState.index >= 0 ? nodeEditorState.index : -1);
     }
     if (action === 'node-form-save') saveNodeForm();
-    if (action === 'node-form-delete') deleteNodeForm();
+    if (action === 'node-form-delete') { if (requireConfirm(btn, '删除')) deleteNodeForm(); }
     if (action === 'subscription-form-new') loadSubscriptionForm(-1);
     if (action === 'subscription-form-sync') {
       renderSubscriptionList();
       loadSubscriptionForm(subscriptionEditorState.index >= 0 ? subscriptionEditorState.index : -1);
     }
     if (action === 'subscription-form-save') saveSubscriptionForm();
-    if (action === 'subscription-form-delete') deleteSubscriptionForm();
+    if (action === 'subscription-form-delete') { if (requireConfirm(btn, '删除')) deleteSubscriptionForm(); }
     if (action === 'subscription-form-preview') await previewCurrentSubscriptionForm();
     if (action === 'format-json') formatJSONEditor();
     if (action === 'copy-json') await copyText(byId('config-json')?.value || '', 'JSON 已复制');
@@ -871,6 +907,10 @@ document.addEventListener('click', async e => {
 });
 
 document.addEventListener('keydown', async e => {
+  if (e.key === 'Escape') {
+    const toast = byId('toast');
+    if (toast) { clearTimeout(toastTimer); toast.classList.remove('show'); }
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && document.body.dataset.page === 'config') {
     e.preventDefault();
     try {
