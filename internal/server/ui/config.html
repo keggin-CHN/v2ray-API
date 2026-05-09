@@ -118,7 +118,7 @@
           <label>ID<input id="upstream-id" /></label>
           <label>名称<input id="upstream-name" /></label>
           <label class="full">Base URL<input id="upstream-base-url" placeholder="https://api.example.com/v1" /></label>
-          <label>API Key<input id="upstream-api-key" /></label>
+          <label>API Key<input id="upstream-api-key" autocomplete="off" /></label>
           <label>Binding ID<input id="upstream-binding-id" /></label>
           <label>优先级<input id="upstream-priority" type="number" placeholder="100" /></label>
           <label>启用
@@ -334,10 +334,13 @@
           <h2>操作日志</h2>
           <p class="muted small">所有关键操作与错误反馈集中展示</p>
         </div>
+        <div class="quick-actions">
+          <button class="btn sm" data-action="clear-log">清空</button>
+        </div>
       </div>
       <pre id="config-log" class="log-box large-log"></pre>
       <div id="token-panel" class="token-panel hidden">
-        <label>新控制台密钥<input id="new-admin-token" type="password" placeholder="输入新的控制台密钥" /></label>
+        <label>新控制台密钥<input id="new-admin-token" type="password" placeholder="输入新的控制台密钥" autocomplete="off" /></label>
         <button class="btn primary" data-action="submit-token" data-busy-text="更新中">确认修改密钥</button>
       </div>
     </section>

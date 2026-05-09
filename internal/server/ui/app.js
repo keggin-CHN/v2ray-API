@@ -263,6 +263,8 @@ function renderNodeList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'proxy_nodes');
   renderGenericList('node-list', cfg.proxy_nodes, nodeEditorState.index, (n, i) => n.name || n.id || `node-${i + 1}`, n => `${n.scheme || ''} · ${n.host || ''}:${n.port ?? ''}`, 'data-node-index');
+  const filterEl = byId('node-filter');
+  if (filterEl) filterEl.placeholder = `搜索节点… (${cfg.proxy_nodes.length})`;
   filterNodeList();
 }
 
@@ -999,6 +1001,7 @@ document.addEventListener('click', async e => {
     if (action === 'format-json') formatJSONEditor();
     if (action === 'copy-json') await copyText(byId('config-json')?.value || '', 'JSON 已复制');
     if (action === 'copy-bootstrap-json') await copyText(byId('bootstrap-json')?.textContent || '', 'Bootstrap 结果已复制');
+    if (action === 'clear-log') setLog('config-log', '');
   } catch (err) {
     const logId = document.body.dataset.page === 'login' ? 'login-log' : 'config-log';
     setLog(logId, err.message);
