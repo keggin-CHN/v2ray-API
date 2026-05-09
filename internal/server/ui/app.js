@@ -263,6 +263,16 @@ function renderNodeList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'proxy_nodes');
   renderGenericList('node-list', cfg.proxy_nodes, nodeEditorState.index, (n, i) => n.name || n.id || `node-${i + 1}`, n => `${n.scheme || ''} · ${n.host || ''}:${n.port ?? ''}`, 'data-node-index');
+  filterNodeList();
+}
+
+function filterNodeList() {
+  const filter = (byId('node-filter')?.value || '').toLowerCase();
+  const items = document.querySelectorAll('#node-list .list-item');
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = !filter || text.includes(filter) ? '' : 'none';
+  });
 }
 
 function renderSubscriptionList() {
@@ -872,6 +882,10 @@ function bindEditorSummary() {
     });
   }
 }
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'node-filter') filterNodeList();
+});
 
 document.addEventListener('change', e => {
   const target = e.target;

@@ -998,6 +998,12 @@ main {
   opacity: 0.7;
 }
 
+.list-filter {
+  margin-bottom: 10px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
 [data-collapsible] > .card-head {
   cursor: pointer;
 }
