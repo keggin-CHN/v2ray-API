@@ -836,6 +836,13 @@ document.addEventListener('change', e => {
   if (target && (target.hasAttribute('data-failover-after') || target.hasAttribute('data-failover-duration'))) syncFailoverStepsFromTable();
 });
 
+document.addEventListener('click', e => {
+  const head = e.target.closest('[data-collapsible] > .card-head');
+  if (head && !e.target.closest('[data-action], .btn')) {
+    head.parentElement.classList.toggle('collapsed');
+  }
+});
+
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-action], [data-upstream-index], [data-binding-index], [data-node-index], [data-subscription-index]');
   if (!btn) return;
@@ -940,6 +947,15 @@ document.addEventListener('keydown', async e => {
   if (e.key === 'Escape') {
     const toast = byId('toast');
     if (toast) { clearTimeout(toastTimer); toast.classList.remove('show'); }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.body.dataset.page === 'config') {
+    e.preventDefault();
+    try {
+      await applyConfig();
+    } catch (err) {
+      setLog('config-log', err.message);
+      showToast(err.message, 'error');
+    }
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && document.body.dataset.page === 'config') {
     e.preventDefault();

@@ -512,6 +512,18 @@ textarea {
   font-size: 12px;
 }
 
+.chip.method-get {
+  background: rgba(68, 210, 155, 0.14);
+  border-color: rgba(68, 210, 155, 0.3);
+  color: var(--success);
+}
+
+.chip.method-post {
+  background: rgba(255, 199, 107, 0.14);
+  border-color: rgba(255, 199, 107, 0.3);
+  color: var(--warning);
+}
+
 .log-box {
   position: relative;
   z-index: 1;
@@ -937,6 +949,27 @@ main {
   color: var(--muted);
   font-size: 13px;
   opacity: 0.7;
+}
+
+[data-collapsible] > .card-head {
+  cursor: pointer;
+}
+
+[data-collapsible] > .card-head::after {
+  content: "▾";
+  font-size: 14px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+[data-collapsible].collapsed > .card-head::after {
+  transform: rotate(-90deg);
+}
+
+[data-collapsible].collapsed > *:not(.card-head) {
+  display: none;
 }
 
 .json-editor.valid {
