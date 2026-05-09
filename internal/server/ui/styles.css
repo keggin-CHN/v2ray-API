@@ -672,6 +672,14 @@ textarea {
     padding: 18px 14px;
   }
 
+  .headline h1 {
+    font-size: 20px;
+  }
+
+  .headline p {
+    font-size: 13px;
+  }
+
   .layout {
     width: calc(100% - 12px);
     gap: 12px;
@@ -690,6 +698,26 @@ textarea {
 
   .table {
     min-width: 620px;
+  }
+
+  .list-panel {
+    max-height: 320px;
+  }
+
+  .toast {
+    right: 8px;
+    left: 8px;
+    bottom: 12px;
+    max-width: none;
+  }
+
+  .hero-actions {
+    width: 100%;
+  }
+
+  .hero-actions .btn {
+    flex: 1;
+    min-width: 0;
   }
 }
 
@@ -853,6 +881,28 @@ main {
 
 .hero-card h2 {
   font-size: 20px;
+}
+
+.list-panel:empty::after {
+  content: "暂无数据";
+  display: block;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.json-editor.valid {
+  border-color: rgba(68, 210, 155, 0.35);
+}
+
+.json-editor.invalid {
+  border-color: rgba(255, 112, 127, 0.6);
+}
+
+.toolbar-grid .btn::before {
+  font-size: 14px;
 }
 
 @media (prefers-reduced-motion: reduce) {

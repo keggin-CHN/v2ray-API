@@ -745,9 +745,11 @@ function bindEditorSummary() {
     timer = setTimeout(() => {
       try {
         JSON.parse(editor.value || '{}');
-        editor.style.borderColor = '';
+        editor.classList.remove('invalid');
+        editor.classList.add('valid');
       } catch {
-        editor.style.borderColor = 'rgba(255, 112, 127, 0.6)';
+        editor.classList.remove('valid');
+        editor.classList.add('invalid');
       }
       try {
         renderEditorSummary();
