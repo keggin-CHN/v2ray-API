@@ -6,6 +6,27 @@ let subscriptionEditorState = { index: -1 };
 let toastTimer = null;
 
 let confirmTimers = new WeakMap();
+let activeRequests = 0;
+
+function showProgress() {
+  activeRequests++;
+  let bar = byId('progress-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'progress-bar';
+    bar.className = 'progress-bar';
+    document.body.prepend(bar);
+  }
+  bar.classList.add('active');
+}
+
+function hideProgress() {
+  activeRequests = Math.max(0, activeRequests - 1);
+  if (activeRequests === 0) {
+    const bar = byId('progress-bar');
+    if (bar) bar.classList.remove('active');
+  }
+}
 
 function requireConfirm(btn, action) {
   if (btn.dataset.confirmed === 'true') {
@@ -29,13 +50,18 @@ function requireConfirm(btn, action) {
 }
 
 async function api(url, options = {}) {
-  const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
-  const res = await fetch(url, {credentials: 'same-origin', ...options, headers});
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) throw new Error((data && data.error) || text || ('HTTP ' + res.status));
-  return data;
+  showProgress();
+  try {
+    const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
+    const res = await fetch(url, {credentials: 'same-origin', ...options, headers});
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) throw new Error((data && data.error) || text || ('HTTP ' + res.status));
+    return data;
+  } finally {
+    hideProgress();
+  }
 }
 
 function byId(id) { return document.getElementById(id); }
@@ -271,6 +297,7 @@ function loadUpstreamForm(index) {
   setValue('upstream-timeout-seconds', u.timeout_seconds);
   setValue('upstream-models', Array.isArray(u.models) ? u.models.join(',') : '');
   renderUpstreamList();
+  if (index < 0) { const el = byId('upstream-id'); if (el) el.focus(); }
 }
 
 function saveUpstreamForm() {
@@ -343,6 +370,7 @@ function loadBindingForm(index) {
   renderSelectOptions('binding-node-id', nodeIds, b.node_id);
   setValue('binding-mode', b.mode);
   renderBindingList();
+  if (index < 0) { const el = byId('binding-id'); if (el) el.focus(); }
 }
 
 function saveBindingForm() {
@@ -394,6 +422,7 @@ function loadNodeForm(index) {
   setValue('node-tags', Array.isArray(node.tags) ? node.tags.join(',') : '');
   setValue('node-raw-uri', node.raw_uri);
   renderNodeList();
+  if (index < 0) { const el = byId('node-id'); if (el) el.focus(); }
 }
 
 function saveNodeForm() {
@@ -445,6 +474,7 @@ function loadSubscriptionForm(index) {
   setValue('subscription-url', sub.url);
   setValue('subscription-refresh', sub.refresh_interval_seconds);
   renderSubscriptionList();
+  if (index < 0) { const el = byId('subscription-id'); if (el) el.focus(); }
 }
 
 function saveSubscriptionForm() {
