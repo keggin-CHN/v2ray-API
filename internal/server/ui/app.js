@@ -197,12 +197,16 @@ function renderPreviewTable() {
     wrap.classList.add('hidden');
     summary.textContent = '当前没有预览节点。';
     if (checkAll) checkAll.checked = false;
+    const appendBtn = byId('append-nodes-btn');
+    if (appendBtn) appendBtn.disabled = true;
     return;
   }
   wrap.classList.remove('hidden');
   const selectedCount = previewState.selected.filter(Boolean).length;
   summary.textContent = `预览格式：${previewState.format || '-'} ｜ 节点数：${previewState.nodes.length} ｜ 已选中：${selectedCount}`;
   if (checkAll) checkAll.checked = selectedCount === previewState.nodes.length;
+  const appendBtn = byId('append-nodes-btn');
+  if (appendBtn) appendBtn.disabled = selectedCount === 0;
   const frag = document.createDocumentFragment();
   previewState.nodes.forEach((node, idx) => {
     const tr = document.createElement('tr');
