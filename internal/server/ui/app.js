@@ -88,6 +88,10 @@ function markClean() {
   if (btn) btn.classList.remove('has-changes');
 }
 
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
 function metric(label, value) {
   const div = document.createElement('div');
   div.className = 'metric';
@@ -1014,6 +1018,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       btt.classList.toggle('visible', window.scrollY > 400);
     }, { passive: true });
     btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+  const sticky = document.querySelector('.sticky-summary-card');
+  if (sticky) {
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'height:1px;margin-bottom:-1px;pointer-events:none';
+    sticky.parentElement.insertBefore(sentinel, sticky);
+    new IntersectionObserver(([e]) => {
+      sticky.classList.toggle('is-stuck', !e.isIntersecting);
+    }).observe(sentinel);
   }
   try {
     if (page === 'home') await loadStatus();

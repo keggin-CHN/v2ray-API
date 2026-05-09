@@ -387,6 +387,13 @@ textarea {
   color: rgba(156, 177, 209, 0.5);
 }
 
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 select {
   appearance: none;
   padding-right: 32px;
@@ -645,6 +652,11 @@ textarea {
   position: sticky;
   top: 96px;
   z-index: 8;
+  transition: box-shadow 0.2s ease;
+}
+
+.sticky-summary-card.is-stuck {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 1px 0 var(--line);
 }
 
 ::-webkit-scrollbar {
