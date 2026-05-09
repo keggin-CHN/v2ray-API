@@ -80,12 +80,14 @@ function markDirty() {
   isDirty = true;
   const btn = document.querySelector('[data-action="save-config"]');
   if (btn) btn.classList.add('has-changes');
+  if (document.body.dataset.page === 'config') document.title = '● 配置管理 - api-v2ray';
 }
 
 function markClean() {
   isDirty = false;
   const btn = document.querySelector('[data-action="save-config"]');
   if (btn) btn.classList.remove('has-changes');
+  if (document.body.dataset.page === 'config') document.title = '配置管理 - api-v2ray';
 }
 
 window.addEventListener('beforeunload', e => {
