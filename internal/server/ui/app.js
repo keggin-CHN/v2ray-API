@@ -622,12 +622,15 @@ async function loadRouteHealth() {
 async function loadStatus() {
   const grid = byId('status-grid');
   if (!grid) return;
-  grid.innerHTML = '';
-  for (let i = 0; i < 6; i++) {
-    const sk = document.createElement('div');
-    sk.className = 'metric skeleton';
-    sk.innerHTML = '<div class="label">&nbsp;</div><div class="value">&nbsp;</div>';
-    grid.appendChild(sk);
+  const isFirstLoad = !grid.children.length || grid.querySelector('.skeleton');
+  if (isFirstLoad) {
+    grid.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'metric skeleton';
+      sk.innerHTML = '<div class="label">&nbsp;</div><div class="value">&nbsp;</div>';
+      grid.appendChild(sk);
+    }
   }
   try {
     const [health, cfg] = await Promise.all([api('/healthz'), api('/api/config')]);
@@ -643,8 +646,11 @@ async function loadStatus() {
     grid.appendChild(metric('刷新时间', ts()));
   } catch (err) {
     grid.innerHTML = '';
-    grid.appendChild(metric('状态', '加载失败'));
+    const errMetric = metric('状态', '连接失败');
+    errMetric.querySelector('.value').setAttribute('data-status', 'bad');
+    grid.appendChild(errMetric);
     grid.appendChild(metric('错误', err.message));
+    grid.appendChild(metric('重试时间', ts()));
     throw err;
   }
 }
