@@ -734,22 +734,35 @@ async function restartServer() {
 }
 
 async function loadBootstrap(run) {
-  const data = await api(run ? '/api/bootstrap/run' : '/api/bootstrap', {method: run ? 'POST' : 'GET'});
-  const result = data.result || null;
   const summary = byId('bootstrap-summary');
   const json = byId('bootstrap-json');
   if (!summary || !json) return;
+  summary.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'metric skeleton';
+    sk.innerHTML = '<div class="label">&nbsp;</div><div class="value">&nbsp;</div>';
+    summary.appendChild(sk);
+  }
+  const data = await api(run ? '/api/bootstrap/run' : '/api/bootstrap', {method: run ? 'POST' : 'GET'});
+  const result = data.result || null;
   summary.innerHTML = '';
   if (!result) {
     summary.appendChild(metric('状态', '暂无结果'));
     json.textContent = JSON.stringify(data, null, 2);
     return;
   }
-  summary.appendChild(metric('节点数', result.summary?.node_count ?? result.flat_result?.nodes?.length ?? 0));
-  summary.appendChild(metric('生成配置数', result.summary?.generated_count ?? result.flat_result?.generated_xray?.length ?? 0));
+  const nodeCount = result.summary?.node_count ?? result.flat_result?.nodes?.length ?? 0;
+  const genCount = result.summary?.generated_count ?? result.flat_result?.generated_xray?.length ?? 0;
+  const m1 = metric('节点数', nodeCount);
+  if (nodeCount > 0) m1.querySelector('.value').style.color = 'var(--success)';
+  summary.appendChild(m1);
+  const m2 = metric('生成配置数', genCount);
+  if (genCount > 0) m2.querySelector('.value').style.color = 'var(--success)';
+  summary.appendChild(m2);
   summary.appendChild(metric('运行阶段', result.runtime_stage ? 'available' : 'none'));
   summary.appendChild(metric('节点阶段', result.node_stage ? 'available' : 'none'));
-  summary.appendChild(metric('是否含 summary', result.summary ? 'yes' : 'no'));
+  summary.appendChild(metric('加载时间', ts()));
   json.textContent = JSON.stringify(result, null, 2);
   showToast(run ? 'Bootstrap 已重新执行' : 'Bootstrap 结果已加载');
 }

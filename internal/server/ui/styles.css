@@ -637,6 +637,7 @@ textarea {
   transform: translateY(12px);
   pointer-events: none;
   transition: opacity 0.18s ease, transform 0.18s ease;
+  will-change: transform, opacity;
 }
 
 .toast.show {
@@ -965,6 +966,12 @@ main {
 
 .metric .value[data-status="bad"] {
   color: var(--danger);
+  animation: pulse-bad 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-bad {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .card-head h2 {
@@ -1078,6 +1085,7 @@ main {
   transform: translateY(8px);
   transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  will-change: transform, opacity;
 }
 
 .back-to-top.visible {
