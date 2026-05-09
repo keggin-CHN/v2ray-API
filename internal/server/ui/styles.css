@@ -1111,6 +1111,49 @@ main {
   border-color: rgba(126, 185, 255, 0.45);
 }
 
+.shortcut-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.shortcut-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  min-width: 300px;
+  box-shadow: var(--shadow);
+}
+
+.shortcut-panel h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.shortcut-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+  margin: 0 0 16px;
+}
+
+.shortcut-list dt {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--primary-strong);
+}
+
+.shortcut-list dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -346,6 +346,18 @@
     </section>
   </main>
   <button id="back-to-top" class="back-to-top" aria-label="回到顶部">↑</button>
+  <div id="shortcut-overlay" class="shortcut-overlay hidden" role="dialog" aria-label="键盘快捷键">
+    <div class="shortcut-panel">
+      <h2>键盘快捷键</h2>
+      <dl class="shortcut-list">
+        <dt><kbd>Ctrl+S</kbd></dt><dd>保存配置</dd>
+        <dt><kbd>Ctrl+Enter</kbd></dt><dd>保存并应用</dd>
+        <dt><kbd>Escape</kbd></dt><dd>关闭提示 / 关闭弹窗</dd>
+        <dt><kbd>?</kbd></dt><dd>显示 / 隐藏快捷键</dd>
+      </dl>
+      <button class="btn sm" data-action="close-shortcuts">关闭</button>
+    </div>
+  </div>
   <script src="/ui/app.js"></script>
 </body>
 </html>

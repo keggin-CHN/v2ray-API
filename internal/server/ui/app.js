@@ -1008,6 +1008,7 @@ document.addEventListener('click', async e => {
     if (action === 'copy-json') await copyText(byId('config-json')?.value || '', 'JSON 已复制');
     if (action === 'copy-bootstrap-json') await copyText(byId('bootstrap-json')?.textContent || '', 'Bootstrap 结果已复制');
     if (action === 'clear-log') setLog('config-log', '');
+    if (action === 'close-shortcuts') byId('shortcut-overlay')?.classList.add('hidden');
   } catch (err) {
     const logId = document.body.dataset.page === 'login' ? 'login-log' : 'config-log';
     setLog(logId, err.message);
@@ -1018,9 +1019,14 @@ document.addEventListener('click', async e => {
 });
 
 document.addEventListener('keydown', async e => {
+  const overlay = byId('shortcut-overlay');
   if (e.key === 'Escape') {
     const toast = byId('toast');
     if (toast) { clearTimeout(toastTimer); toast.classList.remove('show'); }
+    if (overlay) overlay.classList.add('hidden');
+  }
+  if (e.key === '?' && document.body.dataset.page === 'config' && !e.target.closest('input,textarea,select')) {
+    if (overlay) overlay.classList.toggle('hidden');
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.body.dataset.page === 'config') {
     e.preventDefault();
