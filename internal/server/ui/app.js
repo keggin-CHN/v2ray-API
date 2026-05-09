@@ -621,6 +621,7 @@ async function loadStatus() {
     grid.appendChild(metric('绑定数量', cfg.config.bindings?.length || 0));
     grid.appendChild(metric('节点数量', cfg.config.proxy_nodes?.length || 0));
     grid.appendChild(metric('订阅数量', cfg.config.subscriptions?.length || 0));
+    grid.appendChild(metric('刷新时间', ts()));
   } catch (err) {
     grid.innerHTML = '';
     grid.appendChild(metric('状态', '加载失败'));
@@ -810,6 +811,9 @@ function addTemplate(kind) {
   if (kind === 'subscription') loadSubscriptionForm(subscriptionEditorState.index);
   showToast(`已新增 ${kind} 模板`);
   setLog('config-log', `已新增 ${kind} 模板。`);
+  const scrollTargets = { upstream: 'upstream-list', binding: 'binding-list', node: 'node-list', subscription: 'subscription-list' };
+  const target = byId(scrollTargets[kind]);
+  if (target) target.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function formatJSONEditor() {
@@ -1029,7 +1033,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).observe(sentinel);
   }
   try {
-    if (page === 'home') await loadStatus();
+    if (page === 'home') {
+      await loadStatus();
+      setInterval(() => { loadStatus().catch(() => {}); }, 30000);
+    }
     if (page === 'config') {
       await loadConfig();
       renderPreviewTable();
