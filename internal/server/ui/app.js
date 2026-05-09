@@ -41,17 +41,18 @@ function showToast(message, type = 'success') {
   if (!el) return;
   el.textContent = message;
   el.className = `toast ${type === 'error' ? 'error' : ''} show`;
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.classList.remove('show');
-  }, 2600);
+  }, type === 'error' ? 4000 : 2600);
 }
 
 function withBusy(button, on) {
   if (!button) return;
   if (on) {
     if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
-    button.textContent = button.dataset.busyText || '处理中';
+    button.textContent = (button.dataset.busyText || '处理中') + ' …';
     button.disabled = true;
     button.classList.add('is-busy');
     return;
@@ -163,6 +164,7 @@ function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, att
     div.type = 'button';
     div.className = 'list-item' + (activeIndex === idx ? ' active' : '');
     div.setAttribute(attr, String(idx));
+    div.setAttribute('aria-current', activeIndex === idx ? 'true' : 'false');
     div.innerHTML = `<div class="title">${escapeHTML(titleFn(item, idx))}</div><div class="meta">${escapeHTML(metaFn(item, idx))}</div>`;
     frag.appendChild(div);
   });
@@ -519,8 +521,15 @@ async function loadStatus() {
   const grid = byId('status-grid');
   if (!grid) return;
   grid.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'metric skeleton';
+    sk.innerHTML = '<div class="label">&nbsp;</div><div class="value">&nbsp;</div>';
+    grid.appendChild(sk);
+  }
   try {
     const [health, cfg] = await Promise.all([api('/healthz'), api('/api/config')]);
+    grid.innerHTML = '';
     grid.appendChild(metric('健康状态', health.ok ? 'ok' : 'bad'));
     grid.appendChild(metric('监听地址', cfg.config.server?.listen || '-'));
     grid.appendChild(metric('上游数量', cfg.config.upstreams?.length || 0));
@@ -528,6 +537,7 @@ async function loadStatus() {
     grid.appendChild(metric('节点数量', cfg.config.proxy_nodes?.length || 0));
     grid.appendChild(metric('订阅数量', cfg.config.subscriptions?.length || 0));
   } catch (err) {
+    grid.innerHTML = '';
     grid.appendChild(metric('状态', '加载失败'));
     grid.appendChild(metric('错误', err.message));
     throw err;
@@ -728,9 +738,15 @@ function bindEditorSummary() {
     clearTimeout(timer);
     timer = setTimeout(() => {
       try {
+        JSON.parse(editor.value || '{}');
+        editor.style.borderColor = '';
+      } catch {
+        editor.style.borderColor = 'rgba(255, 112, 127, 0.6)';
+      }
+      try {
         renderEditorSummary();
       } catch {}
-    }, 120);
+    }, 200);
   });
 }
 
@@ -841,7 +857,6 @@ document.addEventListener('click', async e => {
     const logId = document.body.dataset.page === 'login' ? 'login-log' : 'config-log';
     setLog(logId, err.message);
     showToast(err.message, 'error');
-    if (document.body.dataset.page !== 'login') alert(err.message);
   } finally {
     withBusy(btn, false);
   }
@@ -867,6 +882,10 @@ document.addEventListener('keydown', async e => {
 document.addEventListener('DOMContentLoaded', async () => {
   bindEditorSummary();
   const page = document.body.dataset.page;
+  if (page === 'login') {
+    const loginInput = byId('login-token');
+    if (loginInput) loginInput.focus();
+  }
   try {
     if (page === 'home') await loadStatus();
     if (page === 'config') {
