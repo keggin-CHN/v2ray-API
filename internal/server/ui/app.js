@@ -644,6 +644,10 @@ async function loadStatus() {
     grid.appendChild(metric('节点数量', cfg.config.proxy_nodes?.length || 0));
     grid.appendChild(metric('订阅数量', cfg.config.subscriptions?.length || 0));
     grid.appendChild(metric('刷新时间', ts()));
+    const dot = byId('connection-dot');
+    if (dot) { dot.className = 'connection-dot online'; }
+    const sub = byId('status-subtitle');
+    if (sub) sub.textContent = `上次刷新 ${ts()}`;
   } catch (err) {
     grid.innerHTML = '';
     const errMetric = metric('状态', '连接失败');
@@ -651,6 +655,10 @@ async function loadStatus() {
     grid.appendChild(errMetric);
     grid.appendChild(metric('错误', err.message));
     grid.appendChild(metric('重试时间', ts()));
+    const dot = byId('connection-dot');
+    if (dot) { dot.className = 'connection-dot offline'; }
+    const sub = byId('status-subtitle');
+    if (sub) sub.textContent = `连接失败 ${ts()}`;
     throw err;
   }
 }

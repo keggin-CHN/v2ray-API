@@ -1004,6 +1004,24 @@ main {
   padding: 10px 12px;
 }
 
+.connection-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s ease;
+}
+
+.connection-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(68, 210, 155, 0.5);
+}
+
+.connection-dot.offline {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(255, 112, 127, 0.5);
+}
+
 [data-collapsible] > .card-head {
   cursor: pointer;
 }
