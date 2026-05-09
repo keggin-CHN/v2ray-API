@@ -21,6 +21,8 @@ import (
 	"api-v2ray/internal/upstream"
 )
 
+const maxRequestBodyBytes = 32 << 20
+
 type Server struct {
 	mu             sync.RWMutex
 	routerSvc      *router.Service
@@ -61,10 +63,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/bootstrap", s.requireAuth(serveHTML(bootstrapHTML)))
 	mux.HandleFunc("/ui/app.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
 		_, _ = w.Write([]byte(appJS))
 	})
 	mux.HandleFunc("/ui/styles.css", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
 		_, _ = w.Write([]byte(stylesCSS))
 	})
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -105,8 +109,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	var body struct{ Token string `json:"token"` }
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	var body struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 		return
 	}
@@ -116,11 +122,18 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expected := effectiveAdminToken(cfg.Server.AdminToken)
-	if subtleCompare(body.Token, expected) == false {
+	if !subtleCompare(body.Token, expected) {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid admin token"})
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: tokenHash(expected), Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 86400})
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    tokenHash(expected),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7,
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -129,7 +142,14 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -149,7 +169,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, ConfigResponse{Path: s.configStore.Path, Config: *cfg})
 	case http.MethodPost:
 		var req ConfigUpdateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 			return
 		}
@@ -174,8 +194,10 @@ func (s *Server) handleAdminToken(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	var req struct{ Token string `json:"token"` }
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 		return
 	}
@@ -193,7 +215,14 @@ func (s *Server) handleAdminToken(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: tokenHash(cfg.Server.AdminToken), Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 86400})
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    tokenHash(cfg.Server.AdminToken),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7,
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -203,7 +232,7 @@ func (s *Server) handleConfigApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req ConfigUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 		return
 	}
@@ -222,8 +251,8 @@ func (s *Server) handleConfigApply(w http.ResponseWriter, r *http.Request) {
 		liveCfg := req.Config
 		liveCfg.ProxyNodes = boot.FlatResult.Nodes
 		s.applyLiveConfig(&liveCfg, boot)
-		if err := appruntime.StartXrayProcesses(&liveCfg); err != nil {
-			writeJSON(w, http.StatusBadGateway, ApplyConfigResponse{Path: s.configStore.Path, Config: masked, Result: boot, Error: err.Error()})
+		if startErr := appruntime.StartXrayProcesses(&liveCfg); startErr != nil {
+			writeJSON(w, http.StatusBadGateway, ApplyConfigResponse{Path: s.configStore.Path, Config: masked, Result: boot, Error: startErr.Error()})
 			return
 		}
 	}
@@ -246,6 +275,7 @@ func (s *Server) applyLiveConfig(cfg *model.Config, boot *app.BootstrapResult) {
 	if boot != nil {
 		s.bootstrap = boot
 	}
+	s.upstreamClient.InvalidateAll()
 }
 
 func (s *Server) snapshotState() (*router.Service, *proxyruntime.Registry, *upstream.Client, *app.BootstrapResult) {
@@ -260,7 +290,7 @@ func (s *Server) handleImportURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req ImportURIRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r.Body, 65536)).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 		return
 	}
@@ -278,12 +308,12 @@ func (s *Server) handleImportSubscription(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var req ImportSubscriptionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
 		return
 	}
-	if strings.TrimSpace(req.URL) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "url must not be empty"})
+	if strings.TrimSpace(req.URL) == "" && strings.TrimSpace(req.Text) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "url or text must not be empty"})
 		return
 	}
 	nodes, format, err := s.previewSubscription(r.Context(), req)
@@ -355,7 +385,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	body, modelName, err := decodeAndNormalizeRequestBody(r.Body)
+	body, modelName, err := decodeAndNormalizeRequestBody(io.LimitReader(r.Body, maxRequestBodyBytes))
 	if err != nil {
 		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", "invalid json body")
 		return
@@ -375,7 +405,7 @@ func (s *Server) handleEmbeddings(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	body, modelName, err := decodeAndNormalizeRequestBody(r.Body)
+	body, modelName, err := decodeAndNormalizeRequestBody(io.LimitReader(r.Body, maxRequestBodyBytes))
 	if err != nil {
 		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", "invalid json body")
 		return
@@ -419,7 +449,7 @@ func (s *Server) tryCandidates(r *http.Request, modelName string, body []byte, c
 			continue
 		}
 		if isRetryableStatus(resp.StatusCode) {
-			b, _ := io.ReadAll(resp.Body)
+			b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 			_ = resp.Body.Close()
 			errText := fmt.Sprintf("upstream status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 			routerSvc.MarkFailure(c, classifyStatusFailure(resp.StatusCode), errText)
