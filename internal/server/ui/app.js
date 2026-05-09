@@ -944,10 +944,10 @@ document.addEventListener('click', async e => {
     if (action === 'refresh-exit-ip') await loadExitIPProbe();
     if (action === 'save-config') await saveConfig();
     if (action === 'apply-config') await applyConfig();
-    if (action === 'restart') await restartServer();
+    if (action === 'restart') { if (requireConfirm(btn, '重启')) await restartServer(); }
     if (action === 'run-bootstrap') await loadBootstrap(true);
     if (action === 'login') await login();
-    if (action === 'logout') await logout();
+    if (action === 'logout') { if (requireConfirm(btn, '退出')) await logout(); }
     if (action === 'change-token') byId('token-panel')?.classList.toggle('hidden');
     if (action === 'submit-token') await changeToken();
     if (action === 'add-upstream') addTemplate('upstream');
