@@ -7,13 +7,15 @@
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body data-page="login">
-  <main class="center-wrap">
-    <section class="card auth-card">
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <main class="center-wrap auth-shell">
+    <section class="card auth-card glass-card">
+      <div class="eyebrow">api-v2ray</div>
       <h1>控制台登录</h1>
-      <p class="muted">所有控制台页面与管理接口都需要密钥。初始密钥可在编译时注入，登录后可在控制台修改。</p>
+      <p class="muted">所有控制台页面与管理接口都需要密钥，登录后即可进入完整管理界面。</p>
       <div class="form-grid one-col">
         <label>管理密钥<input id="login-token" type="password" placeholder="请输入控制台密钥" /></label>
-        <button class="btn primary" data-action="login">登录</button>
+        <button class="btn primary wide" data-action="login" data-busy-text="登录中">登录</button>
       </div>
       <pre id="login-log" class="log-box"></pre>
     </section>

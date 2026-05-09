@@ -7,31 +7,45 @@
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body data-page="config">
-  <header class="topbar">
-    <div>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <header class="topbar shell-bar">
+    <div class="headline">
+      <div class="eyebrow">api-v2ray</div>
       <h1>配置管理</h1>
-      <p class="muted">把配置文件里有的字段都暴露出来，可视化编辑 + 原始 JSON 双视图</p>
+      <p class="muted">可视化表单与原始 JSON 同步编辑，顺手一点，反馈更明确。</p>
     </div>
-    <nav class="nav-actions">
-      <a class="btn" href="/">返回首页</a>
-      <a class="btn" href="/bootstrap">查看运行结果</a>
-      <button class="btn" data-action="change-token">修改控制台密钥</button>
-      <button class="btn" data-action="logout">退出登录</button>
-      <button class="btn" data-action="apply-config">保存并应用</button>
-      <button class="btn" data-action="restart">保存并重启</button>
-      <button class="btn primary" data-action="save-config">保存配置</button>
+    <nav class="nav-actions wrap">
+      <a class="btn ghost" href="/">返回首页</a>
+      <a class="btn ghost" href="/bootstrap">运行结果</a>
+      <button class="btn" data-action="reload-config" data-busy-text="加载中">重新加载</button>
+      <button class="btn" data-action="change-token">修改密钥</button>
+      <button class="btn" data-action="apply-config" data-busy-text="应用中">保存并应用</button>
+      <button class="btn" data-action="restart" data-busy-text="重启中">保存并重启</button>
+      <button class="btn primary" data-action="save-config" data-busy-text="保存中">保存配置</button>
     </nav>
   </header>
 
-  <main class="layout">
+  <main class="layout config-layout">
+    <section class="card full-span sticky-summary-card">
+      <div class="card-head compact-head">
+        <div>
+          <h2>当前编辑摘要</h2>
+          <p class="muted small">跟随 JSON 和表单变化实时更新</p>
+        </div>
+      </div>
+      <div id="editor-summary" class="grid metrics-grid"></div>
+    </section>
+
     <section class="card">
-      <div class="card-head">
-        <h2>基础配置</h2>
-        <button class="btn" data-action="reload-config">重新加载</button>
+      <div class="card-head compact-head">
+        <div>
+          <h2>基础配置</h2>
+          <p class="muted small">服务监听与运行时参数</p>
+        </div>
       </div>
       <form id="config-form" class="form-grid">
         <label>监听地址<input name="server.listen" placeholder=":3000" /></label>
-        <label>管理令牌<input name="server.admin_token" /></label>
+        <label>管理令牌<input name="server.admin_token" placeholder="通过右上角按钮修改" /></label>
         <label>Runtime 目录<input name="runtime.dir" /></label>
         <label>Xray Binary<input name="runtime.xray_binary" /></label>
         <label>Base Port<input name="runtime.base_port" type="number" /></label>
@@ -41,14 +55,16 @@
     </section>
 
     <section class="card">
-      <div class="card-head">
-        <h2>Failover 冷却档位</h2>
+      <div class="card-head compact-head">
+        <div>
+          <h2>Failover 冷却档位</h2>
+          <p class="muted small">连续失败次数与冷却秒数映射</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="failover-step-new">新增档位</button>
-          <button class="btn" data-action="failover-step-sync">从 JSON 重新加载</button>
+          <button class="btn sm" data-action="failover-step-new">新增档位</button>
+          <button class="btn sm" data-action="failover-step-sync">从 JSON 刷新</button>
         </div>
       </div>
-      <p class="muted">按“达到连续失败次数”匹配冷却秒数；保存表单后会同步回右侧 JSON 编辑区。</p>
       <div class="table-wrap">
         <table class="table preview-table">
           <thead>
@@ -63,29 +79,38 @@
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>上游 / 绑定 / 节点 / 订阅</h2>
+    <section class="card full-span">
+      <div class="card-head compact-head">
+        <div>
+          <h2>JSON 编辑区</h2>
+          <p class="muted small">所有结构最终都会同步回这里</p>
+        </div>
+        <div class="quick-actions">
+          <button class="btn sm" data-action="format-json">格式化 JSON</button>
+          <button class="btn sm" data-action="copy-json">复制 JSON</button>
+        </div>
       </div>
-      <p class="muted">当前先提供 JSON 可视化编辑器，保证所有配置字段都有地方可配。</p>
-      <div class="quick-actions toolbar-wrap">
+      <div class="quick-actions toolbar-wrap toolbar-grid">
         <button class="btn" data-action="add-upstream">新增 Upstream</button>
         <button class="btn" data-action="add-binding">新增 Binding</button>
         <button class="btn" data-action="add-node">新增 Proxy Node</button>
         <button class="btn" data-action="add-subscription">新增 Subscription</button>
       </div>
-      <textarea id="config-json" class="json-editor" spellcheck="false"></textarea>
+      <textarea id="config-json" class="json-editor tall" spellcheck="false"></textarea>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>上游管理</h2>
+    <section class="card section-card">
+      <div class="card-head compact-head">
+        <div>
+          <h2>上游管理</h2>
+          <p class="muted small">选择、创建、删除与同步上游</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="upstream-form-new">新增上游</button>
-          <button class="btn" data-action="upstream-form-sync">从 JSON 重新加载</button>
+          <button class="btn sm" data-action="upstream-form-new">新增</button>
+          <button class="btn sm" data-action="upstream-form-sync">刷新</button>
         </div>
       </div>
-      <div class="two-pane">
+      <div class="two-pane responsive-pane">
         <div><div id="upstream-list" class="list-panel"></div></div>
         <form id="upstream-form" class="form-grid">
           <label>ID<input id="upstream-id" /></label>
@@ -101,21 +126,24 @@
           <label class="full">模型列表（逗号分隔）<input id="upstream-models" placeholder="gpt-4o-mini,text-embedding-3-small" /></label>
           <div class="quick-actions full toolbar-wrap">
             <button class="btn primary" data-action="upstream-form-save" type="button">保存当前上游</button>
-            <button class="btn" data-action="upstream-form-delete" type="button">删除当前上游</button>
+            <button class="btn danger" data-action="upstream-form-delete" type="button">删除当前上游</button>
           </div>
         </form>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>绑定管理</h2>
+    <section class="card section-card">
+      <div class="card-head compact-head">
+        <div>
+          <h2>绑定管理</h2>
+          <p class="muted small">绑定上游与节点关系</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="binding-form-new">新增绑定</button>
-          <button class="btn" data-action="binding-form-sync">从 JSON 重新加载</button>
+          <button class="btn sm" data-action="binding-form-new">新增</button>
+          <button class="btn sm" data-action="binding-form-sync">刷新</button>
         </div>
       </div>
-      <div class="two-pane">
+      <div class="two-pane responsive-pane">
         <div><div id="binding-list" class="list-panel"></div></div>
         <form id="binding-form" class="form-grid">
           <label>ID<input id="binding-id" /></label>
@@ -124,24 +152,25 @@
           <label>Node ID<select id="binding-node-id"></select></label>
           <div class="quick-actions full toolbar-wrap">
             <button class="btn primary" data-action="binding-form-save" type="button">保存当前绑定</button>
-            <button class="btn" data-action="binding-form-delete" type="button">删除当前绑定</button>
+            <button class="btn danger" data-action="binding-form-delete" type="button">删除当前绑定</button>
           </div>
         </form>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>节点管理</h2>
+    <section class="card section-card">
+      <div class="card-head compact-head">
+        <div>
+          <h2>节点管理</h2>
+          <p class="muted small">手动节点与导入节点统一编辑</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="node-form-new">新增节点</button>
-          <button class="btn" data-action="node-form-sync">从 JSON 重新加载</button>
+          <button class="btn sm" data-action="node-form-new">新增</button>
+          <button class="btn sm" data-action="node-form-sync">刷新</button>
         </div>
       </div>
-      <div class="two-pane">
-        <div>
-          <div id="node-list" class="list-panel"></div>
-        </div>
+      <div class="two-pane responsive-pane">
+        <div><div id="node-list" class="list-panel"></div></div>
         <form id="node-form" class="form-grid">
           <label>ID<input id="node-id" /></label>
           <label>名称<input id="node-name" /></label>
@@ -153,24 +182,25 @@
           <label class="full">Raw URI<textarea id="node-raw-uri" class="json-editor compact" spellcheck="false"></textarea></label>
           <div class="quick-actions full toolbar-wrap">
             <button class="btn primary" data-action="node-form-save" type="button">保存当前节点</button>
-            <button class="btn" data-action="node-form-delete" type="button">删除当前节点</button>
+            <button class="btn danger" data-action="node-form-delete" type="button">删除当前节点</button>
           </div>
         </form>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>订阅管理</h2>
+    <section class="card section-card">
+      <div class="card-head compact-head">
+        <div>
+          <h2>订阅管理</h2>
+          <p class="muted small">订阅抓取与更新入口</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="subscription-form-new">新增订阅</button>
-          <button class="btn" data-action="subscription-form-sync">从 JSON 重新加载</button>
+          <button class="btn sm" data-action="subscription-form-new">新增</button>
+          <button class="btn sm" data-action="subscription-form-sync">刷新</button>
         </div>
       </div>
-      <div class="two-pane">
-        <div>
-          <div id="subscription-list" class="list-panel"></div>
-        </div>
+      <div class="two-pane responsive-pane">
+        <div><div id="subscription-list" class="list-panel"></div></div>
         <form id="subscription-form" class="form-grid">
           <label>ID<input id="subscription-id" /></label>
           <label>名称<input id="subscription-name" /></label>
@@ -178,24 +208,27 @@
           <label>刷新间隔（秒）<input id="subscription-refresh" type="number" placeholder="3600" /></label>
           <div class="quick-actions full toolbar-wrap">
             <button class="btn primary" data-action="subscription-form-save" type="button">保存当前订阅</button>
-            <button class="btn" data-action="subscription-form-delete" type="button">删除当前订阅</button>
-            <button class="btn" data-action="subscription-form-preview" type="button">抓取并预览当前订阅</button>
+            <button class="btn danger" data-action="subscription-form-delete" type="button">删除当前订阅</button>
+            <button class="btn" data-action="subscription-form-preview" type="button" data-busy-text="预览中">抓取并预览当前订阅</button>
           </div>
         </form>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>导入工具</h2>
+    <section class="card full-span">
+      <div class="card-head compact-head">
+        <div>
+          <h2>导入工具</h2>
+          <p class="muted small">支持 URI、原始订阅文本、Clash YAML、sing-box JSON</p>
+        </div>
       </div>
       <div class="form-grid">
         <label class="full">粘贴单条节点 URI
           <textarea id="import-uri" class="json-editor compact" placeholder="例如 vless://... 或 hy2://..." spellcheck="false"></textarea>
         </label>
-        <div class="quick-actions full toolbar-wrap">
-          <button class="btn primary" data-action="preview-uri">解析 URI 预览</button>
-          <button class="btn" data-action="append-preview-nodes">把选中预览节点加入当前配置</button>
+        <div class="quick-actions full toolbar-wrap toolbar-grid">
+          <button class="btn primary" data-action="preview-uri" data-busy-text="解析中">解析 URI 预览</button>
+          <button class="btn" data-action="append-preview-nodes">加入当前配置</button>
           <button class="btn" data-action="preview-select-all">全选预览</button>
           <button class="btn" data-action="preview-select-none">清空选择</button>
         </div>
@@ -203,16 +236,16 @@
           <textarea id="import-raw-text" class="json-editor compact" placeholder="可直接粘贴订阅文本、Clash YAML、sing-box JSON" spellcheck="false"></textarea>
         </label>
         <div class="quick-actions full toolbar-wrap">
-          <button class="btn primary" data-action="preview-raw-import">解析文本导入预览</button>
+          <button class="btn primary" data-action="preview-raw-import" data-busy-text="解析中">解析文本导入预览</button>
         </div>
         <label>订阅 ID<input id="import-sub-id" placeholder="sub-main" /></label>
         <label>订阅名称<input id="import-sub-name" placeholder="Main Subscription" /></label>
         <label class="full">订阅链接<input id="import-sub-url" placeholder="https://example.com/sub" /></label>
         <div class="quick-actions full toolbar-wrap">
-          <button class="btn primary" data-action="preview-subscription">抓取订阅预览</button>
+          <button class="btn primary" data-action="preview-subscription" data-busy-text="抓取中">抓取订阅预览</button>
         </div>
       </div>
-      <div id="preview-summary" class="muted"></div>
+      <div id="preview-summary" class="muted summary-bar"></div>
       <div id="preview-table-wrap" class="table-wrap hidden">
         <table class="table preview-table">
           <thead>
@@ -233,10 +266,13 @@
     </section>
 
     <section class="card">
-      <div class="card-head">
-        <h2>线路健康</h2>
+      <div class="card-head compact-head">
+        <div>
+          <h2>线路健康</h2>
+          <p class="muted small">快速查看路由冷却与失败情况</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="refresh-route-health">刷新线路状态</button>
+          <button class="btn sm" data-action="refresh-route-health" data-busy-text="刷新中">刷新线路状态</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -261,10 +297,13 @@
     </section>
 
     <section class="card">
-      <div class="card-head">
-        <h2>出口 IP 自检</h2>
+      <div class="card-head compact-head">
+        <div>
+          <h2>出口 IP 自检</h2>
+          <p class="muted small">判断代理出口是否真正切换</p>
+        </div>
         <div class="quick-actions">
-          <button class="btn" data-action="refresh-exit-ip">检测当前出口</button>
+          <button class="btn sm" data-action="refresh-exit-ip" data-busy-text="检测中">检测当前出口</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -284,14 +323,17 @@
       <pre id="exit-ip-log" class="log-box"></pre>
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>操作日志</h2>
+    <section class="card full-span">
+      <div class="card-head compact-head">
+        <div>
+          <h2>操作日志</h2>
+          <p class="muted small">所有关键操作与错误反馈集中展示</p>
+        </div>
       </div>
-      <pre id="config-log" class="log-box"></pre>
+      <pre id="config-log" class="log-box large-log"></pre>
       <div id="token-panel" class="token-panel hidden">
         <label>新控制台密钥<input id="new-admin-token" type="password" placeholder="输入新的控制台密钥" /></label>
-        <button class="btn primary" data-action="submit-token">确认修改密钥</button>
+        <button class="btn primary" data-action="submit-token" data-busy-text="更新中">确认修改密钥</button>
       </div>
     </section>
   </main>

@@ -7,27 +7,42 @@
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body data-page="bootstrap">
-  <header class="topbar">
-    <div>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <header class="topbar shell-bar">
+    <div class="headline">
+      <div class="eyebrow">api-v2ray</div>
       <h1>Bootstrap 结果</h1>
-      <p class="muted">支持回溯、刷新、查看平铺结果和分阶段结果</p>
+      <p class="muted">支持回溯、刷新与重新执行，结果视图更清楚。</p>
     </div>
-    <nav class="nav-actions">
-      <a class="btn" href="/">返回首页</a>
-      <a class="btn" href="/config">去配置页</a>
-      <button class="btn" data-action="logout">退出登录</button>
-      <button class="btn primary" data-action="run-bootstrap">重新执行 Bootstrap</button>
+    <nav class="nav-actions wrap">
+      <a class="btn ghost" href="/">返回首页</a>
+      <a class="btn ghost" href="/config">去配置页</a>
+      <button class="btn danger" data-action="logout" data-busy-text="退出中">退出登录</button>
+      <button class="btn primary" data-action="run-bootstrap" data-busy-text="执行中">重新执行 Bootstrap</button>
     </nav>
   </header>
 
   <main class="layout">
     <section class="card">
-      <div class="card-head"><h2>摘要</h2></div>
-      <div id="bootstrap-summary" class="grid"></div>
+      <div class="card-head compact-head">
+        <div>
+          <h2>摘要</h2>
+          <p class="muted small">从结果中提炼关键数字</p>
+        </div>
+      </div>
+      <div id="bootstrap-summary" class="grid metrics-grid"></div>
     </section>
     <section class="card">
-      <div class="card-head"><h2>结果 JSON</h2></div>
-      <pre id="bootstrap-json" class="log-box"></pre>
+      <div class="card-head compact-head">
+        <div>
+          <h2>结果 JSON</h2>
+          <p class="muted small">完整结果原样展示</p>
+        </div>
+        <div class="quick-actions">
+          <button class="btn sm" data-action="copy-bootstrap-json">复制结果</button>
+        </div>
+      </div>
+      <pre id="bootstrap-json" class="log-box large-log"></pre>
     </section>
   </main>
   <script src="/ui/app.js"></script>
