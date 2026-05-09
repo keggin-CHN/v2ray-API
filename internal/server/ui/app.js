@@ -256,19 +256,19 @@ function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, att
 function renderUpstreamList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'upstreams');
-  renderGenericList('upstream-list', cfg.upstreams, upstreamEditorState.index, (u, i) => u.name || u.id || `upstream-${i + 1}`, u => `${u.base_url || ''} · ${u.binding_id || ''}`, 'data-upstream-index');
+  renderGenericList('upstream-list', cfg.upstreams, upstreamEditorState.index, (u, i) => u.name || u.id || `upstream-${i + 1}`, u => [u.base_url, u.binding_id].filter(Boolean).join(' · ') || '-', 'data-upstream-index');
 }
 
 function renderBindingList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'bindings');
-  renderGenericList('binding-list', cfg.bindings, bindingEditorState.index, (b, i) => b.id || `binding-${i + 1}`, b => `${b.upstream_id || ''} -> ${b.node_id || ''} · ${b.mode || ''}`, 'data-binding-index');
+  renderGenericList('binding-list', cfg.bindings, bindingEditorState.index, (b, i) => b.id || `binding-${i + 1}`, b => [b.upstream_id, b.node_id].filter(Boolean).join(' → ') + (b.mode ? ` · ${b.mode}` : ''), 'data-binding-index');
 }
 
 function renderNodeList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'proxy_nodes');
-  renderGenericList('node-list', cfg.proxy_nodes, nodeEditorState.index, (n, i) => n.name || n.id || `node-${i + 1}`, n => `${n.scheme || ''} · ${n.host || ''}:${n.port ?? ''}`, 'data-node-index');
+  renderGenericList('node-list', cfg.proxy_nodes, nodeEditorState.index, (n, i) => n.name || n.id || `node-${i + 1}`, n => [n.scheme, n.host ? `${n.host}:${n.port ?? ''}` : ''].filter(Boolean).join(' · ') || '-', 'data-node-index');
   const filterEl = byId('node-filter');
   if (filterEl) filterEl.placeholder = `搜索节点… (${cfg.proxy_nodes.length})`;
   filterNodeList();
