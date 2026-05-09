@@ -839,7 +839,9 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => {
   const head = e.target.closest('[data-collapsible] > .card-head');
   if (head && !e.target.closest('[data-action], .btn')) {
-    head.parentElement.classList.toggle('collapsed');
+    const section = head.parentElement;
+    section.classList.toggle('collapsed');
+    head.setAttribute('aria-expanded', !section.classList.contains('collapsed'));
   }
 });
 
@@ -979,6 +981,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'login') {
     const loginInput = byId('login-token');
     if (loginInput) loginInput.focus();
+  }
+  const btt = byId('back-to-top');
+  if (btt) {
+    window.addEventListener('scroll', () => {
+      btt.classList.toggle('visible', window.scrollY > 400);
+    }, { passive: true });
+    btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
   }
   try {
     if (page === 'home') await loadStatus();
