@@ -29,7 +29,7 @@ function hideProgress() {
   }
 }
 
-function requireConfirm(btn, action) {
+function requireConfirm(btn) {
   if (btn.dataset.confirmed === 'true') {
     btn.dataset.confirmed = '';
     btn.textContent = btn.dataset.originalLabel;
@@ -39,7 +39,7 @@ function requireConfirm(btn, action) {
   }
   btn.dataset.originalLabel = btn.dataset.originalLabel || btn.textContent;
   btn.dataset.confirmed = 'true';
-  btn.textContent = '确认' + (btn.dataset.originalLabel || action) + '?';
+  btn.textContent = '确认' + btn.dataset.originalLabel + '?';
   btn.classList.add('confirm-pending');
   const timer = setTimeout(() => {
     btn.dataset.confirmed = '';
@@ -105,7 +105,6 @@ function setLog(id, msg) {
   const el = byId(id);
   if (!el) return;
   el.textContent = msg;
-  el.classList.toggle('hidden', !msg);
 }
 
 function showToast(message, type = 'success') {
@@ -149,11 +148,11 @@ function getEditorConfig() {
   return safeParseEditorConfig();
 }
 
-function setEditorConfig(cfg) {
+function setEditorConfig(cfg, silent) {
   const editor = byId('config-json');
   if (editor) editor.value = JSON.stringify(cfg, null, 2);
   renderEditorSummary();
-  markDirty();
+  if (!silent) markDirty();
 }
 
 function ensureArray(target, key) {
@@ -673,7 +672,7 @@ async function loadConfig() {
   setField('runtime.base_port', cfg.runtime.base_port);
   setField('runtime.healthcheck_url', cfg.runtime.healthcheck_url);
   setField('runtime.subscription_cache_file', cfg.runtime.subscription_cache_file);
-  setEditorConfig(cfg);
+  setEditorConfig(cfg, true);
   renderUpstreamList();
   renderBindingList();
   renderNodeList();
@@ -706,7 +705,7 @@ async function saveConfig() {
   syncFailoverStepsFromTable();
   const cfg = syncBaseFieldsIntoConfig();
   const data = await api('/api/config', {method: 'POST', body: JSON.stringify({config: cfg})});
-  setEditorConfig(data.config);
+  setEditorConfig(data.config, true);
   renderUpstreamList();
   renderBindingList();
   renderNodeList();
@@ -722,7 +721,7 @@ async function applyConfig() {
   syncFailoverStepsFromTable();
   const cfg = syncBaseFieldsIntoConfig();
   const data = await api('/api/config/apply', {method: 'POST', body: JSON.stringify({config: cfg})});
-  setEditorConfig(data.config);
+  setEditorConfig(data.config, true);
   renderUpstreamList();
   renderBindingList();
   renderNodeList();
@@ -872,11 +871,12 @@ function formatJSONEditor() {
 function bindEditorSummary() {
   const editor = byId('config-json');
   if (!editor) return;
-  let timer = null;
+  let editorTimer = null;
+  let formTimer = null;
   editor.addEventListener('input', () => {
     markDirty();
-    clearTimeout(timer);
-    timer = setTimeout(() => {
+    clearTimeout(editorTimer);
+    editorTimer = setTimeout(() => {
       try {
         JSON.parse(editor.value || '{}');
         editor.classList.remove('invalid');
@@ -894,8 +894,8 @@ function bindEditorSummary() {
   if (form) {
     form.addEventListener('input', () => {
       markDirty();
-      clearTimeout(timer);
-      timer = setTimeout(() => {
+      clearTimeout(formTimer);
+      formTimer = setTimeout(() => {
         try {
           const cfg = syncBaseFieldsIntoConfig();
           setEditorConfig(cfg);
@@ -951,6 +951,8 @@ document.addEventListener('click', async e => {
       return;
     }
     const action = btn.getAttribute('data-action');
+    const needsConfirm = ['restart', 'logout', 'upstream-form-delete', 'binding-form-delete', 'node-form-delete', 'subscription-form-delete'].includes(action);
+    if (needsConfirm && !requireConfirm(btn)) return;
     withBusy(btn, true);
     if (action === 'refresh-status') await loadStatus();
     if (action === 'reload-config') await loadConfig();
@@ -958,10 +960,10 @@ document.addEventListener('click', async e => {
     if (action === 'refresh-exit-ip') await loadExitIPProbe();
     if (action === 'save-config') await saveConfig();
     if (action === 'apply-config') await applyConfig();
-    if (action === 'restart') { if (requireConfirm(btn, '重启')) await restartServer(); }
+    if (action === 'restart') await restartServer();
     if (action === 'run-bootstrap') await loadBootstrap(true);
     if (action === 'login') await login();
-    if (action === 'logout') { if (requireConfirm(btn, '退出')) await logout(); }
+    if (action === 'logout') await logout();
     if (action === 'change-token') byId('token-panel')?.classList.toggle('hidden');
     if (action === 'submit-token') await changeToken();
     if (action === 'add-upstream') addTemplate('upstream');
@@ -995,28 +997,28 @@ document.addEventListener('click', async e => {
       loadUpstreamForm(upstreamEditorState.index >= 0 ? upstreamEditorState.index : -1);
     }
     if (action === 'upstream-form-save') saveUpstreamForm();
-    if (action === 'upstream-form-delete') { if (requireConfirm(btn, '删除')) deleteUpstreamForm(); }
+    if (action === 'upstream-form-delete') deleteUpstreamForm();
     if (action === 'binding-form-new') loadBindingForm(-1);
     if (action === 'binding-form-sync') {
       renderBindingList();
       loadBindingForm(bindingEditorState.index >= 0 ? bindingEditorState.index : -1);
     }
     if (action === 'binding-form-save') saveBindingForm();
-    if (action === 'binding-form-delete') { if (requireConfirm(btn, '删除')) deleteBindingForm(); }
+    if (action === 'binding-form-delete') deleteBindingForm();
     if (action === 'node-form-new') loadNodeForm(-1);
     if (action === 'node-form-sync') {
       renderNodeList();
       loadNodeForm(nodeEditorState.index >= 0 ? nodeEditorState.index : -1);
     }
     if (action === 'node-form-save') saveNodeForm();
-    if (action === 'node-form-delete') { if (requireConfirm(btn, '删除')) deleteNodeForm(); }
+    if (action === 'node-form-delete') deleteNodeForm();
     if (action === 'subscription-form-new') loadSubscriptionForm(-1);
     if (action === 'subscription-form-sync') {
       renderSubscriptionList();
       loadSubscriptionForm(subscriptionEditorState.index >= 0 ? subscriptionEditorState.index : -1);
     }
     if (action === 'subscription-form-save') saveSubscriptionForm();
-    if (action === 'subscription-form-delete') { if (requireConfirm(btn, '删除')) deleteSubscriptionForm(); }
+    if (action === 'subscription-form-delete') deleteSubscriptionForm();
     if (action === 'subscription-form-preview') await previewCurrentSubscriptionForm();
     if (action === 'format-json') formatJSONEditor();
     if (action === 'copy-json') await copyText(byId('config-json')?.value || '', 'JSON 已复制');

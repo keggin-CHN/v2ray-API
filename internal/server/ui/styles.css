@@ -144,6 +144,8 @@ button {
 .nav-actions,
 .quick-actions,
 .toolbar-wrap {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -314,6 +316,8 @@ button {
 }
 
 .grid {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 14px;
 }
@@ -480,6 +484,8 @@ textarea {
 }
 
 .two-pane {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   gap: 16px;
@@ -1049,10 +1055,8 @@ main {
 [data-collapsible].collapsed > *:not(.card-head) {
   max-height: 0;
   opacity: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .json-editor.valid {
