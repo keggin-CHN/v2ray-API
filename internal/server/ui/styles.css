@@ -917,6 +917,10 @@ main {
   transition: background 0.14s ease, box-shadow 0.14s ease;
 }
 
+.table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
 .table tbody tr:hover {
   background: rgba(93, 168, 255, 0.06);
   box-shadow: inset 3px 0 0 var(--primary);

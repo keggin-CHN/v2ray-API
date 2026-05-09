@@ -72,6 +72,7 @@ function readField(name) { const el = document.querySelector(`[name="${name}"]`)
 function splitTags(s) { return String(s || '').split(',').map(v => v.trim()).filter(Boolean); }
 function splitCSV(s) { return String(s || '').split(',').map(v => v.trim()).filter(Boolean); }
 function escapeHTML(s) { return String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'); }
+function ts() { return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
 
 function metric(label, value) {
   const div = document.createElement('div');
@@ -538,7 +539,9 @@ function renderExitIPProbe(data) {
   if (!tbody) return;
   tbody.innerHTML = '';
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td>${escapeHTML(data.direct_ip || '')}</td><td>${escapeHTML(data.proxy_ip || '')}</td><td>${escapeHTML(data.proxy_address || '')}</td><td>${data.proxy_active ? 'yes' : 'no'}</td><td>${data.same_exit ? 'yes' : 'no'}</td>`;
+  const activeColor = data.proxy_active ? 'var(--success)' : 'var(--danger)';
+  const sameColor = data.same_exit ? 'var(--warning)' : 'var(--success)';
+  tr.innerHTML = `<td>${escapeHTML(data.direct_ip || '')}</td><td>${escapeHTML(data.proxy_ip || '')}</td><td>${escapeHTML(data.proxy_address || '')}</td><td style="color:${activeColor}">${data.proxy_active ? 'yes' : 'no'}</td><td style="color:${sameColor}">${data.same_exit ? 'yes' : 'no'}</td>`;
   tbody.appendChild(tr);
   setLog('exit-ip-log', JSON.stringify(data || {}, null, 2));
 }
@@ -560,7 +563,9 @@ function renderRouteHealth(routes) {
   const frag = document.createDocumentFragment();
   for (const r of (routes || [])) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHTML(r.upstream_id || '')}</td><td>${escapeHTML(r.binding_id || '')}</td><td>${escapeHTML(r.node_id || '')}</td><td>${r.consecutive_failures ?? 0}</td><td>${r.total_successes ?? 0}</td><td>${r.total_failures ?? 0}</td><td>${r.is_cooling_down ? 'yes' : 'no'}</td><td>${r.cooldown_seconds ?? 0}</td><td>${escapeHTML(r.last_error || '')}</td>`;
+    const failClass = r.consecutive_failures > 0 ? ' style="color:var(--danger)"' : '';
+    const coolClass = r.is_cooling_down ? ' style="color:var(--warning)"' : '';
+    tr.innerHTML = `<td>${escapeHTML(r.upstream_id || '')}</td><td>${escapeHTML(r.binding_id || '')}</td><td>${escapeHTML(r.node_id || '')}</td><td${failClass}>${r.consecutive_failures ?? 0}</td><td style="color:var(--success)">${r.total_successes ?? 0}</td><td${failClass}>${r.total_failures ?? 0}</td><td${coolClass}>${r.is_cooling_down ? 'yes' : 'no'}</td><td${coolClass}>${r.cooldown_seconds ?? 0}</td><td>${escapeHTML(r.last_error || '')}</td>`;
     frag.appendChild(tr);
   }
   tbody.appendChild(frag);
@@ -655,7 +660,7 @@ async function saveConfig() {
   renderSubscriptionList();
   renderFailoverSteps();
   await Promise.allSettled([loadRouteHealth()]);
-  setLog('config-log', '保存成功。已自动备份旧配置到 configs/.history/ 。');
+  setLog('config-log', `[${ts()}] 保存成功。已自动备份旧配置到 configs/.history/ 。`);
   showToast('配置已保存');
 }
 
@@ -672,7 +677,7 @@ async function applyConfig() {
   await Promise.allSettled([loadRouteHealth()]);
   const nodeCount = data.result?.summary?.node_count ?? data.result?.flat_result?.nodes?.length ?? 0;
   const generated = data.result?.summary?.generated_count ?? data.result?.flat_result?.generated_xray?.length ?? 0;
-  setLog('config-log', `保存并应用成功。节点数=${nodeCount}，生成配置数=${generated}。已刷新路由与 Xray 产物。`);
+  setLog('config-log', `[${ts()}] 保存并应用成功。节点数=${nodeCount}，生成配置数=${generated}。已刷新路由与 Xray 产物。`);
   showToast('配置已保存并应用');
 }
 
