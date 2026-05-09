@@ -169,6 +169,10 @@ function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, att
     frag.appendChild(div);
   });
   box.appendChild(frag);
+  if (activeIndex >= 0) {
+    const active = box.querySelector('.list-item.active');
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 function renderUpstreamList() {
@@ -530,7 +534,9 @@ async function loadStatus() {
   try {
     const [health, cfg] = await Promise.all([api('/healthz'), api('/api/config')]);
     grid.innerHTML = '';
-    grid.appendChild(metric('健康状态', health.ok ? 'ok' : 'bad'));
+    const healthMetric = metric('健康状态', health.ok ? 'ok' : 'bad');
+    healthMetric.querySelector('.value').setAttribute('data-status', health.ok ? 'ok' : 'bad');
+    grid.appendChild(healthMetric);
     grid.appendChild(metric('监听地址', cfg.config.server?.listen || '-'));
     grid.appendChild(metric('上游数量', cfg.config.upstreams?.length || 0));
     grid.appendChild(metric('绑定数量', cfg.config.bindings?.length || 0));
