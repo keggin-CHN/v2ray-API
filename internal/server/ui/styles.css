@@ -780,6 +780,12 @@ textarea {
     flex: 1;
     min-width: 0;
   }
+
+  .log-box,
+  .json-editor {
+    font-size: 12px;
+    padding: 12px;
+  }
 }
 
 .responsive-pane {

@@ -151,6 +151,7 @@ function setEditorConfig(cfg) {
   const editor = byId('config-json');
   if (editor) editor.value = JSON.stringify(cfg, null, 2);
   renderEditorSummary();
+  markDirty();
 }
 
 function ensureArray(target, key) {
@@ -728,6 +729,7 @@ async function previewRawImport() {
 
 async function restartServer() {
   await api('/api/restart', {method: 'POST'});
+  markClean();
   setLog('config-log', '已请求重启，页面将在 2 秒后刷新。');
   showToast('已请求服务重启');
   setTimeout(() => location.reload(), 2000);
