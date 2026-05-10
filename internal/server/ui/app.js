@@ -109,6 +109,7 @@ function setLog(id, msg) {
   const el = byId(id);
   if (!el) return;
   el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
 }
 
 function showToast(message, type = 'success') {
