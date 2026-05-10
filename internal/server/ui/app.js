@@ -806,7 +806,7 @@ async function loadBootstrap(run) {
 }
 
 async function login() {
-  await api('/api/login', {method: 'POST', body: JSON.stringify({token: byId('login-token').value})});
+  await api('/api/login', {method: 'POST', body: JSON.stringify({token: byId('login-token').value.trim()})});
   window.location.href = '/';
 }
 
@@ -816,7 +816,7 @@ async function logout() {
 }
 
 async function changeToken() {
-  await api('/api/admin/token', {method: 'POST', body: JSON.stringify({token: byId('new-admin-token').value})});
+  await api('/api/admin/token', {method: 'POST', body: JSON.stringify({token: byId('new-admin-token').value.trim()})});
   setLog('config-log', '控制台密钥已修改并更新当前登录态。');
   byId('new-admin-token').value = '';
   byId('token-panel').classList.add('hidden');
