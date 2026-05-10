@@ -761,10 +761,13 @@ async function previewRawImport() {
 }
 
 async function restartServer() {
+  syncFailoverStepsFromTable();
+  const cfg = syncBaseFieldsIntoConfig();
+  await api('/api/config', {method: 'POST', body: JSON.stringify({config: cfg})});
   await api('/api/restart', {method: 'POST'});
   markClean();
-  setLog('config-log', '已请求重启，页面将在 2 秒后刷新。');
-  showToast('已请求服务重启');
+  setLog('config-log', `[${ts()}] 已保存配置并重启 Xray 进程。页面将在 2 秒后刷新。`);
+  showToast('已保存并重启');
   setTimeout(() => location.reload(), 2000);
 }
 
