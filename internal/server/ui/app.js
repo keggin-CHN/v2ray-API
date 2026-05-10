@@ -556,13 +556,13 @@ function mergeNodesIntoConfig(nodes) {
   if (!nodes.length) throw new Error('当前没有选中的预览节点');
   const cfg = getEditorConfig();
   ensureArray(cfg, 'proxy_nodes');
-  const existing = new Set(cfg.proxy_nodes.map(n => n.id || n.raw_uri));
+  const existing = new Set(cfg.proxy_nodes.map(n => n.id || n.raw_uri).filter(Boolean));
   let added = 0;
   for (const node of nodes) {
     const key = node.id || node.raw_uri;
-    if (existing.has(key)) continue;
+    if (key && existing.has(key)) continue;
     cfg.proxy_nodes.push(node);
-    existing.add(key);
+    if (key) existing.add(key);
     added += 1;
   }
   setEditorConfig(cfg);
