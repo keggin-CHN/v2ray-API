@@ -658,7 +658,6 @@ async function loadStatus() {
     if (dot) { dot.className = 'connection-dot offline'; }
     const sub = byId('status-subtitle');
     if (sub) sub.textContent = `连接失败 ${ts()}`;
-    throw err;
   }
 }
 
@@ -864,7 +863,7 @@ function addTemplate(kind) {
 
 function formatJSONEditor() {
   const cfg = getEditorConfig();
-  setEditorConfig(cfg);
+  setEditorConfig(cfg, true);
   showToast('JSON 已格式化');
 }
 
@@ -898,7 +897,7 @@ function bindEditorSummary() {
       formTimer = setTimeout(() => {
         try {
           const cfg = syncBaseFieldsIntoConfig();
-          setEditorConfig(cfg);
+          setEditorConfig(cfg, true);
         } catch {}
       }, 400);
     });
@@ -923,7 +922,7 @@ document.addEventListener('change', e => {
 
 document.addEventListener('click', e => {
   const head = e.target.closest('[data-collapsible] > .card-head');
-  if (head && !e.target.closest('[data-action], .btn')) {
+  if (head && !e.target.closest('[data-action], .btn, .quick-actions')) {
     const section = head.parentElement;
     section.classList.toggle('collapsed');
     head.setAttribute('aria-expanded', !section.classList.contains('collapsed'));
@@ -1095,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     if (page === 'home') {
       await loadStatus();
-      setInterval(() => { loadStatus().catch(() => {}); }, 30000);
+      setInterval(() => { loadStatus(); }, 30000);
     }
     if (page === 'config') {
       await loadConfig();
