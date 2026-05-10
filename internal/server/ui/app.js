@@ -55,6 +55,10 @@ async function api(url, options = {}) {
   try {
     const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
     const res = await fetch(url, {credentials: 'same-origin', ...options, headers});
+    if (res.status === 401 && document.body.dataset.page !== 'login') {
+      window.location.href = '/login';
+      throw new Error('会话已过期，正在跳转登录页…');
+    }
     const text = await res.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
