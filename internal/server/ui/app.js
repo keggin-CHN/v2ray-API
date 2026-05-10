@@ -867,7 +867,11 @@ function addTemplate(kind) {
   setLog('config-log', `已新增 ${kind} 模板。`);
   const scrollTargets = { upstream: 'upstream-list', binding: 'binding-list', node: 'node-list', subscription: 'subscription-list' };
   const target = byId(scrollTargets[kind]);
-  if (target) target.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (target) {
+    const card = target.closest('.card');
+    if (card?.classList.contains('collapsed')) card.classList.remove('collapsed');
+    card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function formatJSONEditor() {
