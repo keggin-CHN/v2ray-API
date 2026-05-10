@@ -236,6 +236,16 @@ function setPreviewSelection(checked) {
   renderPreviewTable();
 }
 
+function updatePreviewSummary() {
+  const summary = byId('preview-summary');
+  const checkAll = byId('preview-check-all');
+  const appendBtn = byId('append-nodes-btn');
+  const selectedCount = previewState.selected.filter(Boolean).length;
+  if (summary) summary.textContent = `预览格式：${previewState.format || '-'} ｜ 节点数：${previewState.nodes.length} ｜ 已选中：${selectedCount}`;
+  if (checkAll) checkAll.checked = selectedCount === previewState.nodes.length;
+  if (appendBtn) appendBtn.disabled = selectedCount === 0;
+}
+
 function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, attr) {
   const box = byId(containerId);
   if (!box) return;
@@ -926,7 +936,7 @@ document.addEventListener('change', e => {
   const cb = target.closest('[data-preview-index]');
   if (cb) {
     previewState.selected[Number(cb.getAttribute('data-preview-index'))] = cb.checked;
-    renderPreviewTable();
+    updatePreviewSummary();
     return;
   }
   if (target && target.id === 'preview-check-all') setPreviewSelection(target.checked);
