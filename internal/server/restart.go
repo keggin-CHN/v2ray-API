@@ -21,6 +21,7 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	s.applyLiveConfig(cfg, s.bootstrap)
+	_, _, _, boot := s.snapshotState()
+	s.applyLiveConfig(cfg, boot)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "msg": "xray processes restarted"})
 }
