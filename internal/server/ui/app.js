@@ -363,6 +363,7 @@ function saveUpstreamForm() {
   }
   setEditorConfig(cfg);
   renderUpstreamList();
+  loadBindingForm(bindingEditorState.index);
   showToast('上游已同步到 JSON 编辑区');
   setLog('config-log', '上游表单已同步到 JSON 编辑区，记得保存配置。');
 }
@@ -376,6 +377,7 @@ function deleteUpstreamForm() {
   upstreamEditorState.index = -1;
   loadUpstreamForm(-1);
   renderUpstreamList();
+  loadBindingForm(bindingEditorState.index);
   showToast('已删除当前上游');
   setLog('config-log', '已从 JSON 编辑区删除当前上游，记得保存配置。');
 }
