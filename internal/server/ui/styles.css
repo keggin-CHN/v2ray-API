@@ -1046,17 +1046,13 @@ main {
 }
 
 [data-collapsible] > *:not(.card-head) {
-  transition: opacity 0.2s ease, max-height 0.3s ease;
-  max-height: 2000px;
+  transition: opacity 0.2s ease;
   opacity: 1;
-  overflow: hidden;
 }
 
 [data-collapsible].collapsed > *:not(.card-head) {
-  max-height: 0;
+  display: none;
   opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
 }
 
 .json-editor.valid {
