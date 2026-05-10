@@ -940,19 +940,19 @@ document.addEventListener('click', async e => {
   if (!btn) return;
   try {
     if (btn.hasAttribute('data-upstream-index')) {
-      loadUpstreamForm(Number(btn.getAttribute('data-upstream-index')));
+      try { loadUpstreamForm(Number(btn.getAttribute('data-upstream-index'))); } catch { showToast('请先修复 JSON 格式错误', 'error'); }
       return;
     }
     if (btn.hasAttribute('data-binding-index')) {
-      loadBindingForm(Number(btn.getAttribute('data-binding-index')));
+      try { loadBindingForm(Number(btn.getAttribute('data-binding-index'))); } catch { showToast('请先修复 JSON 格式错误', 'error'); }
       return;
     }
     if (btn.hasAttribute('data-node-index')) {
-      loadNodeForm(Number(btn.getAttribute('data-node-index')));
+      try { loadNodeForm(Number(btn.getAttribute('data-node-index'))); } catch { showToast('请先修复 JSON 格式错误', 'error'); }
       return;
     }
     if (btn.hasAttribute('data-subscription-index')) {
-      loadSubscriptionForm(Number(btn.getAttribute('data-subscription-index')));
+      try { loadSubscriptionForm(Number(btn.getAttribute('data-subscription-index'))); } catch { showToast('请先修复 JSON 格式错误', 'error'); }
       return;
     }
     const action = btn.getAttribute('data-action');
