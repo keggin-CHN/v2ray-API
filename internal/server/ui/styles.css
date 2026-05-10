@@ -726,12 +726,6 @@ textarea {
     width: 100%;
     gap: 8px;
   }
-
-  .nav-actions .btn {
-    flex: 1;
-    min-width: 0;
-    text-align: center;
-  }
 }
 
 @media (max-width: 640px) {
