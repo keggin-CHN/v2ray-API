@@ -318,7 +318,6 @@ function syncFailoverStepsFromTable() {
   });
   cfg.failover.cooldown_steps = steps;
   setEditorConfig(cfg);
-  renderFailoverSteps();
 }
 
 function loadUpstreamForm(index) {
@@ -952,7 +951,7 @@ document.addEventListener('click', async e => {
     const action = btn.getAttribute('data-action');
     const needsConfirm = ['restart', 'logout', 'upstream-form-delete', 'binding-form-delete', 'node-form-delete', 'subscription-form-delete'].includes(action);
     if (needsConfirm && !requireConfirm(btn)) return;
-    withBusy(btn, true);
+    if (btn.hasAttribute('data-busy-text')) withBusy(btn, true);
     if (action === 'refresh-status') await loadStatus();
     if (action === 'reload-config') await loadConfig();
     if (action === 'refresh-route-health') await loadRouteHealth();
@@ -1029,7 +1028,7 @@ document.addEventListener('click', async e => {
     setLog(logId, err.message);
     showToast(err.message, 'error');
   } finally {
-    withBusy(btn, false);
+    if (btn.hasAttribute('data-busy-text')) withBusy(btn, false);
   }
 });
 
