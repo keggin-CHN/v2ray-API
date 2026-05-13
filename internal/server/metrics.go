@@ -10,7 +10,7 @@ import (
 type RuntimeMetricsResponse struct {
 	ProcessStatePath string                         `json:"process_state_path"`
 	Processes        []appruntime.ProcessState      `json:"processes"`
-	Routes           map[string]any                 `json:"routes,omitempty"`
+	Routes           any                            `json:"routes,omitempty"`
 	Upstream         upstream.ClientStats           `json:"upstream"`
 	Error            string                         `json:"error,omitempty"`
 }

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,10 +12,8 @@ import (
 	"sync"
 
 	"api-v2ray/internal/app"
-	"api-v2ray/internal/model"
 	"api-v2ray/internal/openai"
 	"api-v2ray/internal/proxyruntime"
-	appruntime "api-v2ray/internal/runtime"
 	"api-v2ray/internal/router"
 	"api-v2ray/internal/upstream"
 )

@@ -25,8 +25,8 @@ func (s *Server) applyLiveConfig(cfg *model.Config, boot *app.BootstrapResult) {
 	if cfg == nil {
 		return
 	}
-	newRouter := router.NewService(cfg)
-	newRegistry := proxyruntime.NewRegistry(cfg.ProxyNodes)
+	newRouter := router.New(cfg)
+	newRegistry := proxyruntime.New(cfg.ProxyNodes)
 	if s.upstreamClient != nil {
 		s.upstreamClient.InvalidateAll()
 	}
