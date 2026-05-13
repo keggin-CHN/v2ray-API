@@ -45,6 +45,30 @@ func (s *Server) sessionValue() string {
 	return tokenHash(effectiveAdminToken(""))
 }
 
+func setSessionCookie(w http.ResponseWriter, r *http.Request, hashedToken string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    hashedToken,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil,
+		MaxAge:   86400 * 7,
+	})
+}
+
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.TLS != nil,
+		MaxAge:   -1,
+	})
+}
+
 func (s *Server) isAuthenticated(r *http.Request) bool {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil || cookie.Value == "" {

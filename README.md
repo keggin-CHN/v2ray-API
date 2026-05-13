@@ -37,6 +37,18 @@ At its core, `API-V2Ray` implements a multi-stage deterministic pipeline:
 3.  **Proxy Runtime:** On-the-fly generation of Xray outbounds strictly bound to specific node configurations.
 4.  **Egress:** Establishing multiplexed secure tunnels via underlying Xray processes for the final mile to the upstream AI endpoint.
 
+## 🧩 Service Layering (Current)
+
+The HTTP layer has been split into focused files to improve maintainability:
+
+- Authentication handlers: [`internal/server/server_handlers_auth.go`](internal/server/server_handlers_auth.go)
+- Admin/config/bootstrap handlers: [`internal/server/server_handlers_admin.go`](internal/server/server_handlers_admin.go)
+- Import handlers: [`internal/server/server_handlers_imports.go`](internal/server/server_handlers_imports.go)
+- Observability handlers: [`internal/server/metrics.go`](internal/server/metrics.go)
+- Cross-cutting middleware: [`internal/server/middleware.go`](internal/server/middleware.go)
+
+This reduces the size and coupling of [`Server`](internal/server/server.go:28) and makes endpoint ownership clearer.
+
 ## 🛠️ Quick Start
 
 ### Prerequisites
@@ -56,7 +68,45 @@ go build -o bin/api-v2ray ./cmd/api-v2ray
 ./bin/api-v2ray -config ./configs/config.local.json
 ```
 
-## 📜 Configuration Mapping
+## 🔐 Security Deployment Notes
+
+- Set [`server.admin_token`](configs/config.example.json) to a strong random value.
+- Expose admin endpoints only in trusted networks; prefer HTTPS behind a reverse proxy.
+- Rotate upstream [`api_key`](configs/config.example.json) regularly with least-privilege scopes.
+- Run with a low-privilege account and limit permissions for [`runtime/`](runtime/).
+
+## 📈 Observability
+
+### Built-in API endpoints
+
+- `GET /healthz`: basic liveness check.
+- `GET /api/health/routes`: route health snapshot (auth required).
+- `GET /api/metrics/upstream`: upstream request counters from [`StatsSnapshot()`](internal/upstream/client.go:160) (auth required).
+- `GET /api/metrics/runtime`: process-state file path, tracked process list, route health, and upstream counters (auth required).
+- `GET /api/diagnostics/exit-ip?url=...&fallback_url=...`: direct/proxy egress IP probe with fallback target support (auth required).
+
+### Access log and request tracing
+
+Global middleware chain in [`Handler()`](internal/server/server.go:52) now includes:
+- panic recovery (`recover`) with stack logging,
+- `X-Request-ID` propagation/generation,
+- unified access logging (method/path/status/bytes/latency).
+
+## 🧰 Troubleshooting
+
+- `invalid json body`: malformed JSON, unknown fields, or multiple JSON objects in one request.
+- `dry-run bootstrap failed`: config parsed, but bootstrap precheck failed due to mapping/runtime issues.
+- `runtime launch failed`: Xray process start failure; inspect [`runtime/xray/*.json`](runtime/) and binary path.
+- `all upstream candidates failed`: upstream/proxy/auth issues; inspect logs with `upstream_request_*`.
+
+## 🧪 Operations Runbook
+
+- Before applying config changes, use `POST /api/config/apply` to trigger dry-run bootstrap and runtime launch checks.
+- If apply fails after runtime start, rollback is attempted automatically (previous config + runtime relaunch).
+- Runtime process state is persisted in `runtime/xray/processes.json` (or custom runtime dir) and can be inspected via `GET /api/metrics/runtime`.
+- For upstream instability, correlate router health (`/api/health/routes`) with upstream counters (`/api/metrics/upstream`) and `upstream_request_*` logs.
+
+## Configuration Mapping
 
 `API-V2Ray` employs a robust JSON/YAML schema for mapping upstreams, proxy nodes, and bindings. Key components include:
 - `upstreams`: Defines target AI endpoints (e.g., GPT-4 endpoints) and authentication keys.

@@ -27,7 +27,11 @@ func (s *Service) Fetch(ctx context.Context, sub model.Subscription) ([]model.Pr
 		return nil, fmt.Errorf("fetch subscription %s: %w", sub.ID, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("fetch subscription %s: status %d: %s", sub.ID, resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return nil, err
 	}

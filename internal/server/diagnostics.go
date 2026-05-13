@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"api-v2ray/internal/openai"
@@ -44,11 +45,13 @@ func (s *Server) handleExitIPProbe(w http.ResponseWriter, r *http.Request) {
 	proxyAddr := net.JoinHostPort(endpoint.Host, fmt.Sprintf("%d", endpoint.Port))
 	resp := ExitIPProbeResponse{ProxyAddress: proxyAddr}
 
-	directIP, directErr := fetchIP(nil)
+	probeURL := strings.TrimSpace(r.URL.Query().Get("url"))
+	fallbackURL := strings.TrimSpace(r.URL.Query().Get("fallback_url"))
+	directIP, directErr := fetchIP(nil, probeURL, fallbackURL)
 	if directErr == nil {
 		resp.DirectIP = directIP
 	}
-	proxyIP, proxyErr := fetchIP(newSocks5Client(endpoint.Host, endpoint.Port))
+	proxyIP, proxyErr := fetchIP(newSocks5Client(endpoint.Host, endpoint.Port), probeURL, fallbackURL)
 	if proxyErr == nil {
 		resp.ProxyIP = proxyIP
 	}
@@ -60,26 +63,58 @@ func (s *Server) handleExitIPProbe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func fetchIP(client *http.Client) (string, error) {
+func fetchIP(client *http.Client, probeURL, fallbackURL string) (string, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.ipify.org", nil)
-	if err != nil {
-		return "", err
+	targets := []string{}
+	if strings.TrimSpace(probeURL) != "" {
+		targets = append(targets, strings.TrimSpace(probeURL))
 	}
-	res, err := client.Do(req)
-	if err != nil {
-		return "", err
+	if strings.TrimSpace(fallbackURL) != "" {
+		targets = append(targets, strings.TrimSpace(fallbackURL))
 	}
-	defer res.Body.Close()
-	b, err := io.ReadAll(io.LimitReader(res.Body, 128))
-	if err != nil {
-		return "", err
+	if len(targets) == 0 {
+		targets = append(targets, "https://api.ipify.org")
 	}
-	return string(b), nil
+
+	var lastErr error
+	for _, target := range targets {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+		if err != nil {
+			cancel()
+			lastErr = err
+			continue
+		}
+		res, err := client.Do(req)
+		if err != nil {
+			cancel()
+			lastErr = err
+			continue
+		}
+		b, readErr := io.ReadAll(io.LimitReader(res.Body, 128))
+		_ = res.Body.Close()
+		cancel()
+		if readErr != nil {
+			lastErr = readErr
+			continue
+		}
+		if res.StatusCode < 200 || res.StatusCode >= 300 {
+			lastErr = fmt.Errorf("probe status %d", res.StatusCode)
+			continue
+		}
+		ip := strings.TrimSpace(string(b))
+		if ip == "" {
+			lastErr = fmt.Errorf("empty probe response")
+			continue
+		}
+		return ip, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("all probes failed")
+	}
+	return "", lastErr
 }
 
 func newSocks5Client(host string, port int) *http.Client {

@@ -22,6 +22,8 @@ import (
 )
 
 const maxRequestBodyBytes = 32 << 20
+const maxAuthBodyBytes = 4096
+const maxImportURIBodyBytes = 65536
 
 type Server struct {
 	mu             sync.RWMutex
@@ -83,278 +85,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/bootstrap/run", s.requireAuth(s.handleBootstrapRun))
 	mux.HandleFunc("/api/health/routes", s.requireAuth(s.handleRouteHealth))
 	mux.HandleFunc("/api/diagnostics/exit-ip", s.requireAuth(s.handleExitIPProbe))
+	mux.HandleFunc("/api/metrics/upstream", s.requireAuth(s.handleUpstreamMetrics))
+	mux.HandleFunc("/api/metrics/runtime", s.requireAuth(s.handleRuntimeMetrics))
 	mux.HandleFunc("/api/admin/token", s.requireAuth(s.handleAdminToken))
 	mux.HandleFunc("/api/restart", s.requireAuth(s.handleRestart))
 	mux.HandleFunc("/debug/bootstrap", s.requireAuth(s.handleBootstrap))
 	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	mux.HandleFunc("/v1/embeddings", s.handleEmbeddings)
-	return mux
+	return chain(mux, withRecover, withRequestID, withAccessLog)
 }
 
-func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.NotFound(w, r)
-		return
-	}
-	if s.isAuthenticated(r) {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-	serveHTML(loginHTML)(w, r)
-}
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-		return
-	}
-	cfg, err := s.configStore.Load()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	expected := effectiveAdminToken(cfg.Server.AdminToken)
-	if !subtleCompare(body.Token, expected) {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "invalid admin token"})
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    tokenHash(expected),
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   86400 * 7,
-	})
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	})
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func subtleCompare(a, b string) bool {
-	return strings.TrimSpace(a) != "" && tokenHash(a) == tokenHash(b)
-}
-
-func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		cfg, err := s.configStore.Load()
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-			return
-		}
-		cfg.Server.AdminToken = ""
-		writeJSON(w, http.StatusOK, ConfigResponse{Path: s.configStore.Path, Config: *cfg})
-	case http.MethodPost:
-		var req ConfigUpdateRequest
-		if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-			return
-		}
-		oldCfg, err := s.configStore.Load()
-		if err == nil && strings.TrimSpace(req.Config.Server.AdminToken) == "" {
-			req.Config.Server.AdminToken = oldCfg.Server.AdminToken
-		}
-		if err := s.configStore.Save(&req.Config); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-			return
-		}
-		masked := req.Config
-		masked.Server.AdminToken = ""
-		writeJSON(w, http.StatusOK, ConfigResponse{Path: s.configStore.Path, Config: masked})
-	default:
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-	}
-}
-
-func (s *Server) handleAdminToken(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	var req struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-		return
-	}
-	if strings.TrimSpace(req.Token) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "token must not be empty"})
-		return
-	}
-	cfg, err := s.configStore.Load()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	cfg.Server.AdminToken = strings.TrimSpace(req.Token)
-	if err := s.configStore.Save(cfg); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    tokenHash(cfg.Server.AdminToken),
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   86400 * 7,
-	})
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func (s *Server) handleConfigApply(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	var req ConfigUpdateRequest
-	if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-		return
-	}
-	oldCfg, err := s.configStore.Load()
-	if err == nil && strings.TrimSpace(req.Config.Server.AdminToken) == "" {
-		req.Config.Server.AdminToken = oldCfg.Server.AdminToken
-	}
-	if err := s.configStore.Save(&req.Config); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	boot, err := app.Bootstrap(r.Context(), &req.Config)
-	masked := req.Config
-	masked.Server.AdminToken = ""
-	if boot != nil {
-		liveCfg := req.Config
-		liveCfg.ProxyNodes = boot.FlatResult.Nodes
-		s.applyLiveConfig(&liveCfg, boot)
-		if startErr := appruntime.StartXrayProcesses(&liveCfg); startErr != nil {
-			writeJSON(w, http.StatusBadGateway, ApplyConfigResponse{Path: s.configStore.Path, Config: masked, Result: boot, Error: startErr.Error()})
-			return
-		}
-	}
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, ApplyConfigResponse{Path: s.configStore.Path, Config: masked, Result: boot, Error: err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, ApplyConfigResponse{Path: s.configStore.Path, Config: masked, Result: boot})
-}
-
-func (s *Server) applyLiveConfig(cfg *model.Config, boot *app.BootstrapResult) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.routerSvc = router.New(cfg)
-	if boot != nil && len(boot.FlatResult.GeneratedXRAY) > 0 {
-		s.proxyRegistry = proxyruntime.NewFromGenerated(boot.FlatResult.GeneratedXRAY)
-	} else {
-		s.proxyRegistry = proxyruntime.New(cfg.ProxyNodes)
-	}
-	if boot != nil {
-		s.bootstrap = boot
-	}
-	s.upstreamClient.InvalidateAll()
-}
-
-func (s *Server) snapshotState() (*router.Service, *proxyruntime.Registry, *upstream.Client, *app.BootstrapResult) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.routerSvc, s.proxyRegistry, s.upstreamClient, s.bootstrap
-}
-
-func (s *Server) handleImportURI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	var req ImportURIRequest
-	if err := json.NewDecoder(io.LimitReader(r.Body, 65536)).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-		return
-	}
-	node, err := buildNodeFromURI(req.RawURI)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, ImportPreviewResponse{Nodes: []model.ProxyNode{node}})
-}
-
-func (s *Server) handleImportSubscription(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	var req ImportSubscriptionRequest
-	if err := json.NewDecoder(io.LimitReader(r.Body, maxRequestBodyBytes)).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid json body"})
-		return
-	}
-	if strings.TrimSpace(req.URL) == "" && strings.TrimSpace(req.Text) == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "url or text must not be empty"})
-		return
-	}
-	nodes, format, err := s.previewSubscription(r.Context(), req)
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, ImportPreviewResponse{Format: format, Nodes: nodes})
-}
-
-func (s *Server) handleBootstrap(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	_, _, _, boot := s.snapshotState()
-	writeJSON(w, http.StatusOK, BootstrapResponse{Result: boot})
-}
-
-func (s *Server) handleBootstrapRun(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
-		return
-	}
-	cfg, err := s.configStore.Load()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, BootstrapResponse{Error: err.Error()})
-		return
-	}
-	boot, err := app.Bootstrap(context.Background(), cfg)
-	if boot != nil {
-		liveCfg := *cfg
-		liveCfg.ProxyNodes = boot.FlatResult.Nodes
-		s.applyLiveConfig(&liveCfg, boot)
-	}
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, BootstrapResponse{Result: boot, Error: err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, BootstrapResponse{Result: boot})
-}
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -513,12 +254,18 @@ func decodeAndNormalizeRequestBody(body io.Reader) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	if len(raw) == 0 {
+		return nil, "", fmt.Errorf("empty request body")
+	}
 	var payload map[string]any
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, "", err
 	}
 	modelName, _ := payload["model"].(string)
-	modelName = openai.CanonicalModelName(modelName)
+	modelName = strings.TrimSpace(openai.CanonicalModelName(modelName))
+	if modelName == "" {
+		return nil, "", fmt.Errorf("model is required")
+	}
 	payload["model"] = modelName
 	normalized, err := json.Marshal(payload)
 	if err != nil {

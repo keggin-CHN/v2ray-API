@@ -37,6 +37,18 @@
 3.  **Proxy Runtime (代理运行时):** 动态生成与特定节点配置严格绑定的 Xray Outbounds（出站协议）。
 4.  **Egress (出口网络):** 借助底层的 Xray 进程建立多路复用的加密安全隧道，完成到达上游 AI 端点的“最后一公里”。
 
+## 🧩 服务分层（当前实现）
+
+当前 HTTP 服务已按职责拆分到独立文件，提升可维护性与可读性：
+
+- 认证相关处理器：[`internal/server/server_handlers_auth.go`](internal/server/server_handlers_auth.go)
+- 管理/配置/引导处理器：[`internal/server/server_handlers_admin.go`](internal/server/server_handlers_admin.go)
+- 导入处理器：[`internal/server/server_handlers_imports.go`](internal/server/server_handlers_imports.go)
+- 可观测性处理器：[`internal/server/metrics.go`](internal/server/metrics.go)
+- 通用中间件：[`internal/server/middleware.go`](internal/server/middleware.go)
+
+通过拆分，显著降低了 [`Server`](internal/server/server.go:28) 的体量与耦合度，接口职责也更清晰。
+
 ## 🛠️ 快速开始
 
 ### 环境依赖
@@ -56,7 +68,45 @@ go build -o bin/api-v2ray ./cmd/api-v2ray
 ./bin/api-v2ray -config ./configs/config.local.json
 ```
 
-## 📜 配置映射
+## 🔐 安全部署建议
+
+- 将 [`server.admin_token`](configs/config.example.json) 设置为高强度随机串，避免默认值。
+- 仅在受信网络暴露管理接口，建议前置反向代理并启用 HTTPS。
+- 定期轮换上游 [`api_key`](configs/config.example.json) 并最小化权限范围。
+- 为运行目录（如 [`runtime/`](runtime/)）配置最小权限账户，避免使用高权限用户运行。
+
+## 📈 可观测性
+
+### 内置观测接口
+
+- `GET /healthz`：基础存活探针。
+- `GET /api/health/routes`：路由健康快照（需认证）。
+- `GET /api/metrics/upstream`：上游请求计数指标，来自 [`StatsSnapshot()`](internal/upstream/client.go:160)（需认证）。
+- `GET /api/metrics/runtime`：返回进程状态文件路径、已跟踪进程列表、路由健康与上游计数（需认证）。
+- `GET /api/diagnostics/exit-ip?url=...&fallback_url=...`：出口 IP 诊断，支持主探针失败后回退探针（需认证）。
+
+### 访问日志与请求追踪
+
+全局中间件链已接入 [`Handler()`](internal/server/server.go:52)：
+- panic 恢复（含堆栈日志）、
+- `X-Request-ID` 透传/自动生成、
+- 统一访问日志（method/path/status/bytes/latency）。
+
+## 🧰 常见排障
+
+- `invalid json body`：请求体包含未知字段、多个 JSON 对象，或格式不合法。
+- `dry-run bootstrap failed`：配置结构可解析但路由/绑定/节点关系在预检阶段失败。
+- `runtime launch failed`：Xray 进程启动异常，请检查 [`runtime/xray/*.json`](runtime/) 与二进制路径。
+- `all upstream candidates failed`：上游不可达、认证失败或代理节点异常，建议查看服务日志中的 `upstream_request_*` 记录。
+
+## 🧪 运维手册（精简）
+
+- 配置变更建议优先使用 `POST /api/config/apply`，执行 dry-run 引导与运行时启动校验。
+- 若保存阶段失败且运行时已启动，系统会自动尝试回滚（旧配置 + 运行时重启）。
+- 运行时进程状态持久化在 `runtime/xray/processes.json`（或自定义 runtime 目录），可通过 `GET /api/metrics/runtime` 检查。
+- 上游抖动排查时，建议联合分析路由健康（`/api/health/routes`）、上游计数（`/api/metrics/upstream`）与 `upstream_request_*` 日志。
+
+## 配置映射
 
 `API-V2Ray` 采用高度健壮的 JSON/YAML schema 来映射上游（upstreams）、代理节点（proxy nodes）以及绑定关系（bindings）。核心组件包括：
 - `upstreams`: 定义目标 AI 端点（例如 GPT-4 接口）以及鉴权密钥。
