@@ -57,5 +57,5 @@ func decodeJSONBody(r *http.Request, maxBytes int64, dst any) error {
 }
 
 func subtleCompare(got, expected string) bool {
-	return openai.SafeCompare(got, expected)
+	return subtle.ConstantTimeCompare([]byte(got), []byte(expected)) == 1
 }
