@@ -26,7 +26,7 @@ func (s *Server) applyLiveConfig(cfg *model.Config, boot *app.BootstrapResult) {
 		return
 	}
 	newRouter := router.New(cfg)
-	newRegistry := proxyruntime.New(cfg.ProxyNodes)
+	newRegistry := buildProxyRegistry(cfg, boot)
 	if s.upstreamClient != nil {
 		s.upstreamClient.InvalidateAll()
 	}
@@ -54,6 +54,16 @@ func decodeJSONBody(r *http.Request, maxBytes int64, dst any) error {
 		return err
 	}
 	return nil
+}
+
+func buildProxyRegistry(cfg *model.Config, boot *app.BootstrapResult) *proxyruntime.Registry {
+	if boot != nil && len(boot.FlatResult.GeneratedXRAY) > 0 {
+		return proxyruntime.NewFromGenerated(boot.FlatResult.GeneratedXRAY)
+	}
+	if cfg == nil {
+		return proxyruntime.New(nil)
+	}
+	return proxyruntime.New(cfg.ProxyNodes)
 }
 
 func subtleCompare(got, expected string) bool {

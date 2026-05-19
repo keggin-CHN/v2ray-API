@@ -9,20 +9,31 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"api-v2ray/internal/model"
 )
 
-type Service struct{}
+type Service struct {
+	client *http.Client
+}
 
-func New() *Service { return &Service{} }
+func New() *Service {
+	return &Service{
+		client: &http.Client{Timeout: 30 * time.Second},
+	}
+}
 
 func (s *Service) Fetch(ctx context.Context, sub model.Subscription) ([]model.ProxyNode, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sub.URL, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	client := s.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch subscription %s: %w", sub.ID, err)
 	}

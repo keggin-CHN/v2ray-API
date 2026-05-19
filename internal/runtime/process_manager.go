@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -103,39 +104,61 @@ func stopTrackedXray(cfg *model.Config) error {
 	for _, p := range st.Processes {
 		killPID(p.PID)
 	}
-	return os.Remove(statePath)
+	if err := os.Remove(statePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 func StartXrayProcesses(cfg *model.Config) error {
 	if cfg == nil {
 		return fmt.Errorf("config is nil")
 	}
-	_ = stopTrackedXray(cfg)
+	bin := strings.TrimSpace(cfg.Runtime.XrayBinary)
+	if bin == "" {
+		return fmt.Errorf("runtime.xray_binary is empty")
+	}
+	if err := stopTrackedXray(cfg); err != nil {
+		return fmt.Errorf("stop tracked xray processes: %w", err)
+	}
 
 	var started []ProcessState
 	for _, node := range cfg.ProxyNodes {
-		cfgPath := xrayConfigPath(cfg, node.ID)
+		nodeID := strings.TrimSpace(node.ID)
+		if nodeID == "" {
+			continue
+		}
+		cfgPath := xrayConfigPath(cfg, nodeID)
 		if _, err := os.Stat(cfgPath); err != nil {
 			continue
 		}
-		cmd := exec.Command(cfg.Runtime.XrayBinary, "run", "-c", cfgPath)
+		cmd := exec.Command(bin, "run", "-c", cfgPath)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("start xray for %s: %w", node.ID, err)
+			stopStartedProcesses(started)
+			return fmt.Errorf("start xray for %s: %w", nodeID, err)
 		}
 		if cmd.Process == nil {
-			return fmt.Errorf("start xray for %s: empty process", node.ID)
+			stopStartedProcesses(started)
+			return fmt.Errorf("start xray for %s: empty process", nodeID)
 		}
 		started = append(started, ProcessState{
-			NodeID:    node.ID,
+			NodeID:    nodeID,
 			PID:       cmd.Process.Pid,
 			Config:    cfgPath,
 			StartedAt: time.Now().UTC().Format(time.RFC3339),
 		})
 		if err := cmd.Process.Release(); err != nil {
-			return fmt.Errorf("release xray process for %s: %w", node.ID, err)
+			stopStartedProcesses(started)
+			return fmt.Errorf("release xray process for %s: %w", nodeID, err)
 		}
 	}
 	return saveProcessState(processStatePath(cfg), ProcessStateFile{Processes: started})
+}
+
+func stopStartedProcesses(processes []ProcessState) {
+	for _, p := range processes {
+		killPID(p.PID)
+	}
 }

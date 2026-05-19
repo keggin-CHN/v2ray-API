@@ -32,7 +32,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("bootstrap: %v", err)
 	}
-	cfg.ProxyNodes = boot.FlatResult.Nodes
+	if boot != nil {
+		cfg.ProxyNodes = boot.FlatResult.Nodes
+	}
 
 	routerSvc := router.New(cfg)
 	proxyRegistry := proxyruntime.New(cfg.ProxyNodes)

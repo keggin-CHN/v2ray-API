@@ -999,9 +999,13 @@ main {
 }
 
 .list-filter {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 13px;
   padding: 10px 12px;
+}
+
+.list-hint {
+  margin: 0 0 10px;
 }
 
 .connection-dot {

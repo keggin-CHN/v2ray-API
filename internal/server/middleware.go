@@ -32,6 +32,19 @@ func withRequestID(next http.Handler) http.Handler {
 	})
 }
 
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "same-origin")
+		h.Set("X-Frame-Options", "DENY")
+		if r.URL.Path == "/login" || r.URL.Path == "/" || r.URL.Path == "/config" || r.URL.Path == "/bootstrap" {
+			h.Set("Cache-Control", "no-store")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func withAccessLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -48,6 +61,9 @@ func withRecover(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				log.Printf("panic recovered method=%s path=%s err=%v\n%s", r.Method, r.URL.Path, rec, string(debug.Stack()))
+				if sr, ok := w.(*statusRecorder); ok && sr.wroteHeader {
+					return
+				}
 				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "internal server error"})
 			}
 		}()

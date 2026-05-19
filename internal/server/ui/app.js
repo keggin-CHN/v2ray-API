@@ -8,6 +8,8 @@ let isDirty = false;
 
 let confirmTimers = new WeakMap();
 let activeRequests = 0;
+const API_TIMEOUT_MS = 45000;
+const NODE_RENDER_LIMIT = 300;
 
 function showProgress() {
   activeRequests++;
@@ -52,9 +54,13 @@ function requireConfirm(btn) {
 
 async function api(url, options = {}) {
   showProgress();
+  const {timeoutMs: requestedTimeout, ...fetchOptions} = options;
+  const controller = new AbortController();
+  const timeoutMs = Number(requestedTimeout || API_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
-    const res = await fetch(url, {credentials: 'same-origin', ...options, headers});
+    const headers = {'Content-Type': 'application/json', ...(fetchOptions.headers || {})};
+    const res = await fetch(url, {credentials: 'same-origin', ...fetchOptions, headers, signal: controller.signal});
     if (res.status === 401 && document.body.dataset.page !== 'login') {
       window.location.href = '/login';
       throw new Error('会话已过期，正在跳转登录页…');
@@ -62,11 +68,26 @@ async function api(url, options = {}) {
     const text = await res.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    if (!res.ok) throw new Error((data && data.error) || text || ('HTTP ' + res.status));
+    if (!res.ok) throw new Error(extractErrorMessage(data, text, res.status));
     return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error(`请求超时（${Math.round(timeoutMs / 1000)} 秒）`);
+    throw err;
   } finally {
+    clearTimeout(timer);
     hideProgress();
   }
+}
+
+function extractErrorMessage(data, text, status) {
+  if (data && typeof data === 'object') {
+    if (typeof data.error === 'string') return data.error;
+    if (data.error && typeof data.error.message === 'string') return data.error.message;
+    if (typeof data.message === 'string') return data.message;
+  }
+  if (typeof data === 'string' && data.trim()) return data.trim();
+  if (text && text.trim()) return text.trim();
+  return 'HTTP ' + status;
 }
 
 function byId(id) { return document.getElementById(id); }
@@ -246,7 +267,7 @@ function updatePreviewSummary() {
   if (appendBtn) appendBtn.disabled = selectedCount === 0;
 }
 
-function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, attr) {
+function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, attr, attrValueFn) {
   const box = byId(containerId);
   if (!box) return;
   box.innerHTML = '';
@@ -254,9 +275,10 @@ function renderGenericList(containerId, items, activeIndex, titleFn, metaFn, att
   items.forEach((item, idx) => {
     const div = document.createElement('button');
     div.type = 'button';
-    div.className = 'list-item' + (activeIndex === idx ? ' active' : '');
-    div.setAttribute(attr, String(idx));
-    div.setAttribute('aria-current', activeIndex === idx ? 'true' : 'false');
+    const attrValue = attrValueFn ? attrValueFn(item, idx) : idx;
+    div.className = 'list-item' + (activeIndex === attrValue ? ' active' : '');
+    div.setAttribute(attr, String(attrValue));
+    div.setAttribute('aria-current', activeIndex === attrValue ? 'true' : 'false');
     div.innerHTML = `<div class="title">${escapeHTML(titleFn(item, idx))}</div><div class="meta">${escapeHTML(metaFn(item, idx))}</div>`;
     frag.appendChild(div);
   });
@@ -282,19 +304,41 @@ function renderBindingList() {
 function renderNodeList() {
   const cfg = getEditorConfig();
   ensureArray(cfg, 'proxy_nodes');
-  renderGenericList('node-list', cfg.proxy_nodes, nodeEditorState.index, (n, i) => n.name || n.id || `node-${i + 1}`, n => [n.scheme, n.host ? `${n.host}:${n.port ?? ''}` : ''].filter(Boolean).join(' · ') || '-', 'data-node-index');
+  const filter = (byId('node-filter')?.value || '').toLowerCase();
+  const entries = cfg.proxy_nodes.map((node, index) => ({ node, index }));
+  const matched = filter
+    ? entries.filter(entry => JSON.stringify(entry.node).toLowerCase().includes(filter))
+    : entries;
+  const visible = matched.slice(0, NODE_RENDER_LIMIT);
+  renderGenericList(
+    'node-list',
+    visible,
+    nodeEditorState.index,
+    entry => entry.node.name || entry.node.id || `node-${entry.index + 1}`,
+    entry => [entry.node.scheme, entry.node.host ? `${entry.node.host}:${entry.node.port ?? ''}` : ''].filter(Boolean).join(' · ') || '-',
+    'data-node-index',
+    entry => entry.index
+  );
   const filterEl = byId('node-filter');
   if (filterEl) filterEl.placeholder = `搜索节点… (${cfg.proxy_nodes.length})`;
-  filterNodeList();
+  const hint = byId('node-list-hint');
+  if (hint) {
+    const hidden = Math.max(0, matched.length - visible.length);
+    hint.textContent = hidden > 0 ? `已显示前 ${visible.length} 个节点，另有 ${hidden} 个可通过搜索缩小范围。` : `共 ${matched.length} 个匹配节点。`;
+  }
 }
 
 function filterNodeList() {
-  const filter = (byId('node-filter')?.value || '').toLowerCase();
-  const items = document.querySelectorAll('#node-list .list-item');
-  items.forEach(item => {
-    const text = item.textContent.toLowerCase();
-    item.style.display = !filter || text.includes(filter) ? '' : 'none';
-  });
+  try {
+    renderNodeList();
+  } catch {
+    const filter = (byId('node-filter')?.value || '').toLowerCase();
+    const items = document.querySelectorAll('#node-list .list-item');
+    items.forEach(item => {
+      const text = item.textContent.toLowerCase();
+      item.style.display = !filter || text.includes(filter) ? '' : 'none';
+    });
+  }
 }
 
 function renderSubscriptionList() {
@@ -648,7 +692,12 @@ async function loadStatus() {
     }
   }
   try {
-    const [health, cfg] = await Promise.all([api('/healthz'), api('/api/config')]);
+    const [health, cfg, runtimeMetrics, upstreamMetrics] = await Promise.all([
+      api('/healthz', { timeoutMs: 12000 }),
+      api('/api/config', { timeoutMs: 12000 }),
+      api('/api/metrics/runtime', { timeoutMs: 12000 }),
+      api('/api/metrics/upstream', { timeoutMs: 12000 })
+    ]);
     grid.innerHTML = '';
     const healthMetric = metric('健康状态', health.ok ? 'ok' : 'bad');
     healthMetric.querySelector('.value').setAttribute('data-status', health.ok ? 'ok' : 'bad');
@@ -658,6 +707,9 @@ async function loadStatus() {
     grid.appendChild(metric('绑定数量', cfg.config.bindings?.length || 0));
     grid.appendChild(metric('节点数量', cfg.config.proxy_nodes?.length || 0));
     grid.appendChild(metric('订阅数量', cfg.config.subscriptions?.length || 0));
+    grid.appendChild(metric('Xray 进程', runtimeMetrics.processes?.length || 0));
+    grid.appendChild(metric('上游请求', upstreamMetrics.requests_total ?? 0));
+    grid.appendChild(metric('上游失败', upstreamMetrics.failures_total ?? 0));
     grid.appendChild(metric('刷新时间', ts()));
     const dot = byId('connection-dot');
     if (dot) { dot.className = 'connection-dot online'; }

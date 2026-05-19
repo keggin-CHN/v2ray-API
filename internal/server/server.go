@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -90,9 +91,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/models", s.handleModels)
 	mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	mux.HandleFunc("/v1/embeddings", s.handleEmbeddings)
-	return chain(mux, withRecover, withRequestID, withAccessLog)
+	return chain(mux, withSecurityHeaders, withRequestID, withAccessLog, withRecover)
 }
-
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -123,9 +123,9 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	body, modelName, err := decodeAndNormalizeRequestBody(io.LimitReader(r.Body, maxRequestBodyBytes))
+	body, modelName, err := decodeAndNormalizeRequestBody(r.Body, maxRequestBodyBytes)
 	if err != nil {
-		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", "invalid json body")
+		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", err.Error())
 		return
 	}
 	resp, err := s.tryCandidates(r, modelName, body, true)
@@ -143,9 +143,9 @@ func (s *Server) handleEmbeddings(w http.ResponseWriter, r *http.Request) {
 		openai.WriteError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method_not_allowed", "method not allowed")
 		return
 	}
-	body, modelName, err := decodeAndNormalizeRequestBody(io.LimitReader(r.Body, maxRequestBodyBytes))
+	body, modelName, err := decodeAndNormalizeRequestBody(r.Body, maxRequestBodyBytes)
 	if err != nil {
-		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", "invalid json body")
+		openai.WriteError(w, http.StatusBadRequest, "invalid_request_error", "invalid_json", err.Error())
 		return
 	}
 	resp, err := s.tryCandidates(r, modelName, body, false)
@@ -246,15 +246,26 @@ func classifyRequestFailure(err error) router.FailureKind {
 	return router.FailureUpstreamUnknown
 }
 
-func decodeAndNormalizeRequestBody(body io.Reader) ([]byte, string, error) {
-	dec := json.NewDecoder(body)
+func decodeAndNormalizeRequestBody(body io.Reader, maxBytes int64) ([]byte, string, error) {
+	if body == nil {
+		return nil, "", fmt.Errorf("empty request body")
+	}
+	raw, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, "", fmt.Errorf("read request body: %w", err)
+	}
+	if int64(len(raw)) > maxBytes {
+		return nil, "", fmt.Errorf("request body too large")
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(raw))
 
 	var payload map[string]any
 	if err := dec.Decode(&payload); err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, "", fmt.Errorf("empty request body")
 		}
-		return nil, "", err
+		return nil, "", fmt.Errorf("invalid json body")
 	}
 
 	var extra any
@@ -262,7 +273,7 @@ func decodeAndNormalizeRequestBody(body io.Reader) ([]byte, string, error) {
 		if err == nil {
 			return nil, "", fmt.Errorf("multiple json values")
 		}
-		return nil, "", err
+		return nil, "", fmt.Errorf("invalid json body")
 	}
 
 	modelName, _ := payload["model"].(string)
