@@ -247,17 +247,24 @@ func classifyRequestFailure(err error) router.FailureKind {
 }
 
 func decodeAndNormalizeRequestBody(body io.Reader) ([]byte, string, error) {
-	raw, err := io.ReadAll(body)
-	if err != nil {
-		return nil, "", err
-	}
-	if len(raw) == 0 {
-		return nil, "", fmt.Errorf("empty request body")
-	}
+	dec := json.NewDecoder(body)
+
 	var payload map[string]any
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	if err := dec.Decode(&payload); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, "", fmt.Errorf("empty request body")
+		}
 		return nil, "", err
 	}
+
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return nil, "", fmt.Errorf("multiple json values")
+		}
+		return nil, "", err
+	}
+
 	modelName, _ := payload["model"].(string)
 	modelName = strings.TrimSpace(openai.CanonicalModelName(modelName))
 	if modelName == "" {

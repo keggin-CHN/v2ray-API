@@ -40,6 +40,21 @@ func TestWithRequestID_PreservesIncomingHeader(t *testing.T) {
 	}
 }
 
+func TestStatusRecorderPreservesFirstStatus(t *testing.T) {
+	rec := httptest.NewRecorder()
+	wrapped := &statusRecorder{ResponseWriter: rec, status: http.StatusOK}
+
+	wrapped.WriteHeader(http.StatusAccepted)
+	wrapped.WriteHeader(http.StatusInternalServerError)
+
+	if wrapped.status != http.StatusAccepted {
+		t.Fatalf("expected first status preserved, got %d", wrapped.status)
+	}
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected response status 202, got %d", rec.Code)
+	}
+}
+
 func TestWithRecover_Returns500OnPanic(t *testing.T) {
 	h := withRecover(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("boom")
@@ -58,6 +73,13 @@ func TestWithRecover_Returns500OnPanic(t *testing.T) {
 	}
 	if body["error"] != "internal server error" {
 		t.Fatalf("unexpected error body: %+v", body)
+	}
+}
+
+func TestDecodeAndNormalizeRequestBodyRejectsMultipleJSONValues(t *testing.T) {
+	_, _, err := decodeAndNormalizeRequestBody(strings.NewReader(`{"model":"gpt-5.5"} {"model":"gpt-4"}`))
+	if err == nil || !strings.Contains(err.Error(), "multiple json values") {
+		t.Fatalf("expected multiple json values error, got: %v", err)
 	}
 }
 

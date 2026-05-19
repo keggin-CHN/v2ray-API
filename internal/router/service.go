@@ -322,11 +322,14 @@ func (s *Service) Models() []string {
 			continue
 		}
 		for _, m := range u.Models {
-			if !seen[m] {
-				seen[m] = true
-				out = append(out, m)
+			name := strings.TrimSpace(m)
+			if name == "" || seen[name] {
+				continue
 			}
+			seen[name] = true
+			out = append(out, name)
 		}
 	}
+	sort.Strings(out)
 	return out
 }

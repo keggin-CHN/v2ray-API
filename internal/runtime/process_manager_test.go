@@ -37,6 +37,40 @@ func TestStartXrayProcessesMissingConfigIsSkipped(t *testing.T) {
 	}
 }
 
+func TestStartXrayProcessesUsesConfiguredRuntimeDir(t *testing.T) {
+	tmp := t.TempDir()
+	bin := filepath.Join(tmp, "fake-xray.sh")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nsleep 1\n"), 0o755); err != nil {
+		t.Fatalf("write fake bin: %v", err)
+	}
+
+	runtimeDir := filepath.Join(tmp, "custom-runtime")
+	cfgDir := filepath.Join(runtimeDir, "xray")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "node-custom.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg := &model.Config{
+		Runtime:    model.RuntimeConfig{XrayBinary: bin, Dir: runtimeDir},
+		ProxyNodes: []model.ProxyNode{{ID: "node-custom"}},
+	}
+	if err := StartXrayProcesses(cfg); err != nil {
+		t.Fatalf("start xray processes: %v", err)
+	}
+
+	statePath := filepath.Join(runtimeDir, "xray", "processes.json")
+	b, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if !strings.Contains(string(b), filepath.Join(runtimeDir, "xray", "node-custom.json")) {
+		t.Fatalf("expected configured runtime config path in state, got: %s", string(b))
+	}
+}
+
 func TestStartXrayProcessesWritesStateFile(t *testing.T) {
 	tmp := t.TempDir()
 	bin := filepath.Join(tmp, "fake-xray.sh")

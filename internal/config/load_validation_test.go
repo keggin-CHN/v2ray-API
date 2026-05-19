@@ -32,6 +32,22 @@ func TestValidateRejectsInvalidUpstreamBaseURL(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsDuplicateProxyNodeID(t *testing.T) {
+	cfg := &model.Config{
+		Upstreams: []model.Upstream{
+			{ID: "u1", BaseURL: "https://api.openai.com/v1"},
+		},
+		ProxyNodes: []model.ProxyNode{
+			{ID: "n1"},
+			{ID: "n1"},
+		},
+	}
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "duplicate proxy node id") {
+		t.Fatalf("expected duplicate proxy node id error, got: %v", err)
+	}
+}
+
 func TestValidateRejectsBindingUnknownNode(t *testing.T) {
 	cfg := &model.Config{
 		Upstreams: []model.Upstream{
@@ -47,6 +63,24 @@ func TestValidateRejectsBindingUnknownNode(t *testing.T) {
 	err := validate(cfg)
 	if err == nil || !strings.Contains(err.Error(), "unknown node_id") {
 		t.Fatalf("expected unknown node_id error, got: %v", err)
+	}
+}
+
+func TestValidateRejectsUpstreamUnknownBinding(t *testing.T) {
+	cfg := &model.Config{
+		Upstreams: []model.Upstream{
+			{ID: "u1", BaseURL: "https://api.openai.com/v1", BindingID: "missing"},
+		},
+		ProxyNodes: []model.ProxyNode{
+			{ID: "n1"},
+		},
+		Bindings: []model.Binding{
+			{ID: "b1", UpstreamID: "u1", NodeID: "n1"},
+		},
+	}
+	err := validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "unknown binding_id") {
+		t.Fatalf("expected unknown binding_id error, got: %v", err)
 	}
 }
 

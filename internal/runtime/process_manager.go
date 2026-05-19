@@ -25,12 +25,19 @@ type ProcessStateFile struct {
 	Processes []ProcessState `json:"processes"`
 }
 
-func processStatePath(cfg *model.Config) string {
-	base := "runtime"
+func runtimeDir(cfg *model.Config) string {
 	if cfg != nil && cfg.Runtime.Dir != "" {
-		base = cfg.Runtime.Dir
+		return cfg.Runtime.Dir
 	}
-	return filepath.Join(base, "xray", "processes.json")
+	return "runtime"
+}
+
+func xrayConfigPath(cfg *model.Config, nodeID string) string {
+	return filepath.Join(runtimeDir(cfg), "xray", nodeID+".json")
+}
+
+func processStatePath(cfg *model.Config) string {
+	return filepath.Join(runtimeDir(cfg), "xray", "processes.json")
 }
 
 func ProcessStatePath(cfg *model.Config) string {
@@ -107,7 +114,7 @@ func StartXrayProcesses(cfg *model.Config) error {
 
 	var started []ProcessState
 	for _, node := range cfg.ProxyNodes {
-		cfgPath := fmt.Sprintf("runtime/xray/%s.json", node.ID)
+		cfgPath := xrayConfigPath(cfg, node.ID)
 		if _, err := os.Stat(cfgPath); err != nil {
 			continue
 		}

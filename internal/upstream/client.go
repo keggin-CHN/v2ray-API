@@ -167,11 +167,26 @@ func (c *Client) StatsSnapshot() ClientStats {
 	}
 }
 
+var hopByHopHeaders = map[string]struct{}{
+	"Connection":          {},
+	"Keep-Alive":          {},
+	"Proxy-Authenticate":  {},
+	"Proxy-Authorization": {},
+	"Te":                  {},
+	"Trailer":             {},
+	"Transfer-Encoding":   {},
+	"Upgrade":             {},
+}
+
 func CopyResponse(w http.ResponseWriter, resp *http.Response) error {
 	defer resp.Body.Close()
 	for k, values := range resp.Header {
+		ck := http.CanonicalHeaderKey(k)
+		if _, skip := hopByHopHeaders[ck]; skip {
+			continue
+		}
 		for _, v := range values {
-			w.Header().Add(k, v)
+			w.Header().Add(ck, v)
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
